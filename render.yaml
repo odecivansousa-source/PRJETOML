@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: mossoro-ofertas-linkpronto
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://bnjrbvlnyvyudotngtrb.supabase.co
+      - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuanJidmxueXZ5dWRvdG5ndHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODI0MjksImV4cCI6MjEwOTE1ODQyOX0.TanRo-ioNOtipU3oJE5YU-zPmhfA-QABjuWvqXP5aNQ

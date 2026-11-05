@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7150ed">
+  <meta name="description" content="Cole seu link de afiliado e gere posts prontos para WhatsApp, Telegram e Stories no Instagram.">
+  <title>Mossoró Ofertas — LinkPronto v2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#inicio" aria-label="Mossoró Ofertas, início">
+        <span class="brand-mark">M</span>
+        <span class="brand-text">
+          <b>Mossoró</b>
+          <small>OFERTAS</small>
+        </span>
+      </a>
+      <div class="side-label">FERRAMENTAS</div>
+      <nav class="nav-list" aria-label="Menu principal">
+        <a class="nav-item active" href="#criar">
+          <span class="nav-icon">✦</span>
+          <span>Criar oferta</span>
+          <span class="nav-dot"></span>
+        </a>
+        <a class="nav-item" href="#historico-section">
+          <span class="nav-icon">🕒</span>
+          <span>Histórico do dia</span>
+        </a>
+        <a class="nav-item" href="#piloto-section">
+          <span class="nav-icon">🤖</span>
+          <span>Piloto Automático</span>
+          <span class="nav-queue-pill" id="nav-queue-badge" hidden>0</span>
+        </a>
+        <a class="nav-item" href="#whatsapp-section">
+          <span class="nav-icon">💬</span>
+          <span>WhatsApp & Canais</span>
+        </a>
+        <a class="nav-item muted" href="#como-funciona">
+          <span class="nav-icon">▤</span>
+          <span>Como funciona</span>
+        </a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="mini-card">
+          <span class="mini-icon">🚀</span>
+          <div>
+            <b>Pronto para converter</b>
+            <small>ID Shopee: 18326420168</small>
+          </div>
+        </div>
+        <div class="side-profile">
+          <span class="avatar">M</span>
+          <div>
+            <b>Mossoró Ofertas</b>
+            <small>Afiliado Shopee: 18326420168</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main id="inicio">
+      <header class="topbar">
+        <div class="breadcrumbs">
+          <span>Ofertas</span>
+          <span class="sep">/</span>
+          <b>Painel de Divulgação</b>
+        </div>
+        <div class="topbar-right">
+          <span class="online-dot" title="Servidor local ativo"></span>
+          <span class="daily-badge" id="daily-count-badge">🔥 0 ofertas hoje</span>
+          <button class="theme-toggle" id="theme-toggle" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema">
+            <span class="theme-icon">🌙</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="page-wrap" id="criar">
+        <!-- AVISO QUANDO ABERTO DIRETO PELO ARQUIVO -->
+        <div id="file-warning-banner" class="file-warning-banner" hidden>
+          <span style="font-size: 22px;">⚠️</span>
+          <div>
+            <b>Atenção:</b> Você abriu direto como arquivo pelo computador. Dê 2 cliques no arquivo <b>Iniciar LinkPronto.bat</b> na sua pasta e use pelo endereço: <a href="http://127.0.0.1:4174"><b>http://127.0.0.1:4174</b></a> para o WhatsApp e buscas funcionarem!
+          </div>
+        </div>
+
+        <section class="intro">
+          <div class="eyebrow">
+            <span class="spark">✦</span> CENTRAL DE DIVULGAÇÃO & VENDAS
+          </div>
+          <h1>Do link à postagem.<br><span>Em poucos segundos.</span></h1>
+          <p>Cole seu link de afiliado do Mercado Livre ou Shopee. Nós extraímos a foto, o título e o preço para você publicar nos seus canais e grupos.</p>
+        </section>
+
+        <!-- CARD 01: BUSCA -->
+        <section class="composer-card" aria-labelledby="link-heading">
+          <div class="composer-heading">
+            <div class="number-badge">01</div>
+            <div>
+              <h2 id="link-heading">Cole o link do produto</h2>
+              <p>O seu link de afiliado será mantido 100% intacto na oferta.</p>
+            </div>
+          </div>
+          <form id="link-form" novalidate>
+            <div class="input-row">
+              <span class="link-symbol" aria-hidden="true">🔗</span>
+              <input id="product-link" name="link" type="text" placeholder="Cole o link do Mercado Livre ou Shopee..." autocomplete="off" required>
+              <button class="primary-button" type="submit" id="find-button">
+                <span class="button-icon">✦</span>
+                <span>Buscar produto</span>
+              </button>
+            </div>
+            <div class="manual-trigger-row">
+              <button type="button" class="btn-manual-link" id="manual-compose-button">
+                <span>✏️</span> Preencher dados manualmente com este link
+              </button>
+            </div>
+          </form>
+          <div class="supported-row">
+            <span class="supported-label">LOJAS COMPATÍVEIS:</span>
+            <span class="market-pill"><i class="meli-dot"></i> Mercado Livre</span>
+            <span class="market-pill"><i class="shopee-dot">S</i> Shopee</span>
+            <span class="privacy-note">🔒 Tag de afiliado preservada</span>
+          </div>
+          <div class="error-box" id="error-box" role="alert" hidden></div>
+          <div class="loading-box" id="loading-box" aria-live="polite" hidden>
+            <span class="spinner"></span>
+            <span>Lendo o anúncio e buscando dados do produto...</span>
+          </div>
+        </section>
+
+        <!-- CARD 02: EDIÇÃO E PRÉVIA -->
+        <section class="product-section" id="product-section" hidden aria-labelledby="product-heading">
+          <div class="section-title-row">
+            <div class="composer-heading compact">
+              <div class="number-badge">02</div>
+              <div>
+                <h2 id="product-heading">Revise os dados da oferta</h2>
+                <p>Edite os valores se quiser ajustar ou se a loja tiver preços especiais.</p>
+              </div>
+            </div>
+            <span class="verified-tag" id="status-badge"><span>✓</span> Link verificado</span>
+          </div>
+
+          <div class="offer-layout">
+            <!-- PAINEL DE EDIÇÃO -->
+            <div class="edit-panel">
+              <div class="product-summary">
+                <div class="product-image-col">
+                  <div class="product-image-wrap" id="image-dropzone" title="Clique ou cole uma foto com Ctrl+V">
+                    <img id="product-image" alt="Foto do produto" hidden>
+                    <div class="image-empty" id="image-empty">
+                      <span>🖼️</span>
+                      <small>Sem foto</small>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-change-image" id="change-image-btn" title="Escolha uma imagem do seu computador ou cole com Ctrl+V">
+                    📷 Alterar foto
+                  </button>
+                  <input type="file" id="image-file-input" accept="image/*" hidden>
+                </div>
+                <div class="product-summary-copy">
+                  <span class="store-tag" id="store-tag">MERCADO LIVRE</span>
+                  <div class="summary-title" id="summary-title">Nome do produto</div>
+                  <div class="data-note" id="data-note">Dados obtidos com sucesso.</div>
+                  <!-- BADGE DE ECONOMIA/DESCONTO AUTOMÁTICO -->
+                  <div class="discount-badge-preview" id="discount-badge" hidden>
+                    <span class="discount-pill" id="discount-percent-text">🔥 30% OFF</span>
+                    <span class="economy-text" id="discount-economy-text">Economia de R$ 0,00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-grid">
+                <label class="field full-field">
+                  <span>Nome do produto no anúncio</span>
+                  <input id="edit-title" type="text" maxlength="140" placeholder="Ex: Fone Bluetooth Sem Fio">
+                </label>
+                <label class="field">
+                  <span>Preço com desconto (Por)</span>
+                  <div class="price-input">
+                    <span>R$</span>
+                    <input id="edit-price" inputmode="decimal" placeholder="0,00" aria-label="Preço promocional">
+                  </div>
+                </label>
+                <label class="field">
+                  <span>Preço original (De - opcional)</span>
+                  <div class="price-input">
+                    <span>R$</span>
+                    <input id="edit-original-price" inputmode="decimal" placeholder="0,00" aria-label="Preço original riscado">
+                  </div>
+                </label>
+                <label class="field full-field">
+                  <span>Cupom de desconto (opcional)</span>
+                  <input id="edit-coupon" type="text" maxlength="50" placeholder="Ex: OFERTA10 (deixe vazio se não houver)">
+                </label>
+              </div>
+
+              <!-- SELETOR DE ESTILO DE COPY -->
+              <div class="template-selector">
+                <span class="selector-label">ESTILO DA MENSAGEM:</span>
+                <div class="template-pills">
+                  <button type="button" class="copy-pill active" data-style="padrao">🔥 Imperdível</button>
+                  <button type="button" class="copy-pill" data-style="urgente">⚡ Relâmpago</button>
+                  <button type="button" class="copy-pill" data-style="curto">🎯 Direto</button>
+                </div>
+              </div>
+
+              <div class="affiliate-check">
+                <span class="check-circle">✓</span>
+                <div>
+                  <b id="affiliate-status-title">Link de afiliado verificado</b>
+                  <small id="affiliate-url-preview">O link colado será mantido na chamada.</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- PRÉVIA E COMPARTILHAMENTO -->
+            <aside class="post-preview">
+              <!-- ABAS: TEXTO VS PRÉVIA DA ARTE -->
+              <div class="preview-tabs">
+                <button type="button" class="preview-tab active" id="tab-text-btn">📝 Texto da Oferta</button>
+                <button type="button" class="preview-tab" id="tab-art-btn">🎨 Arte Visual</button>
+              </div>
+
+              <!-- ABA 1: TEXTO -->
+              <div id="preview-text-container">
+                <div class="preview-head">
+                  <div>
+                    <span class="preview-kicker">PRÉVIA</span>
+                    <h3>Mensagem para redes</h3>
+                  </div>
+                  <div class="preview-head-btns">
+                    <button class="btn-copy-photo" id="copy-photo-quick-btn" type="button" title="Copiar foto da oferta para colar com Ctrl+V no WhatsApp">
+                      <span>📸</span> Copiar Foto
+                    </button>
+                    <button class="btn-copy-text" id="copy-button" type="button" title="Copiar texto da oferta">
+                      <span>📋</span> Copiar Texto
+                    </button>
+                  </div>
+                </div>
+
+                <div class="message-preview" id="message-preview" aria-live="polite"></div>
+              </div>
+
+              <!-- ABA 2: PRÉVIA DA ARTE AO VIVO -->
+              <div id="preview-art-container" hidden>
+                <div class="preview-head">
+                  <div>
+                    <span class="preview-kicker">VISUAL</span>
+                    <h3>Arte gerada ao vivo</h3>
+                  </div>
+                </div>
+                <div class="live-canvas-wrap">
+                  <canvas id="live-canvas-preview"></canvas>
+                </div>
+              </div>
+
+              <!-- BOTÕES DE DISPARO RÁPIDO -->
+              <div class="channel-actions">
+                <button class="channel-button telegram" id="telegram-send-button" type="button" title="Enviar no canal ou grupo do Telegram">
+                  <span>➤</span> Enviar no Telegram
+                </button>
+                <button class="channel-button whatsapp" id="whatsapp-quick-button" type="button" title="Disparar foto e mensagem no WhatsApp">
+                  <span>💬</span> Enviar no WhatsApp
+                </button>
+                <button class="channel-button queue-button" id="add-to-queue-btn" type="button" title="Colocar esta oferta na fila do Piloto Automático">
+                  <span>⏳</span> Fila Automática
+                </button>
+              </div>
+
+              <!-- CONTROLES DA ARTE (FORMATO E TEMA) -->
+              <div class="art-customizer-box">
+                <div class="customizer-row">
+                  <span class="customizer-label">FORMATO DA ARTE:</span>
+                  <div class="format-pills">
+                    <button type="button" class="format-pill active" data-format="feed">💬 WhatsApp / Feed (1:1)</button>
+                    <button type="button" class="format-pill" data-format="story">📱 Story (9:16)</button>
+                  </div>
+                </div>
+
+                <div class="customizer-row">
+                  <span class="customizer-label">TEMA VISUAL:</span>
+                  <div class="theme-pills">
+                    <button type="button" class="art-theme-pill active" data-theme="purple" title="Roxo Padrão">🟣 Roxo</button>
+                    <button type="button" class="art-theme-pill" data-theme="shopee" title="Laranja Shopee">🟠 Shopee</button>
+                    <button type="button" class="art-theme-pill" data-theme="meli" title="Amarelo Mercado Livre">🟡 Mercado Livre</button>
+                    <button type="button" class="art-theme-pill" data-theme="dark" title="Dark Premium">⚫ Dark</button>
+                  </div>
+                </div>
+
+                <div class="story-buttons-grid">
+                  <button id="copy-story-button" class="story-subbutton highlight" type="button" title="Copiar imagem para colar com Ctrl+V">
+                    <span>📋</span>
+                    <span><b>Copiar Imagem</b><small>Para colar com Ctrl+V</small></span>
+                  </button>
+                  <button id="download-story-button" class="story-subbutton" type="button" title="Baixar arquivo PNG no computador">
+                    <span>⬇️</span>
+                    <span><b>Baixar PNG</b><small>Salvar imagem</small></span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="channels-quick-link">
+                <a href="#whatsapp-section" class="btn-channels-link">⚙️ Gerenciar grupos do WhatsApp & Telegram</a>
+              </div>
+
+              <div class="share-status" id="share-status" aria-live="polite"></div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- SEÇÃO INDEPENDENTE: CONFIGURAÇÕES DE CANAIS (WHATSAPP & TELEGRAM) -->
+        <section class="channels-section" id="whatsapp-section">
+          <div class="channels-header">
+            <div>
+              <span class="eyebrow">INTEGRAÇÃO DE DISPARO</span>
+              <h2>💬 WhatsApp & Canais de Envio</h2>
+            </div>
+          </div>
+
+          <div class="channels-grid">
+            <!-- BLOCO WHATSAPP -->
+            <div class="channel-card whatsapp-card">
+              <div class="channel-card-head">
+                <span class="channel-card-icon whatsapp-icon">💬</span>
+                <div>
+                  <h3>WhatsApp (Envio em 1 Clique)</h3>
+                  <small id="whatsapp-conn-desc">Conecte via QR Code para disparar sem abrir o app</small>
+                </div>
+                <span class="channel-badge-active" id="whatsapp-status-badge">Desconectado</span>
+              </div>
+
+              <!-- ESTADO 1: DESCONECTADO OU AGUARDANDO QR -->
+              <div id="whatsapp-disconnected-box">
+                <p class="channel-desc">Para enviar direto para o grupo com <b>1 clique real</b>, conecte seu WhatsApp uma única vez lendo o QR Code.</p>
+                <button class="primary-button btn-connect-wpp" id="whatsapp-start-btn" type="button">
+                  <span>📲</span> Conectar WhatsApp (Gerar QR Code)
+                </button>
+                <div class="whatsapp-qr-box" id="whatsapp-qr-box" hidden>
+                  <div class="qr-spinner" id="qr-spinner">
+                    <span class="spinner"></span>
+                    <span>Gerando QR Code...</span>
+                  </div>
+                  <img id="whatsapp-qr-img" alt="QR Code do WhatsApp" hidden>
+                  <p class="qr-instructions">Abra o WhatsApp no celular > <b>Aparelhos Conectados</b> > <b>Conectar um aparelho</b> e aponte a câmera.</p>
+                </div>
+              </div>
+
+              <!-- ESTADO 2: CONECTADO -->
+              <div id="whatsapp-connected-box" hidden>
+                <p class="channel-desc">✅ <b>WhatsApp Conectado!</b> Escolha qual dos seus grupos receberá os disparos das ofertas:</p>
+                <label class="channel-field">
+                  <span>Selecione seu Grupo de Ofertas</span>
+                  <div class="select-row">
+                    <select id="whatsapp-group-select">
+                      <option value="">Carregando grupos...</option>
+                    </select>
+                    <button class="icon-refresh-btn" id="whatsapp-refresh-groups" type="button" title="Atualizar lista de grupos">↻</button>
+                  </div>
+                </label>
+                <div class="channel-btn-row">
+                  <button class="primary-button" id="whatsapp-save-group-btn" type="button">Salvar Grupo Oficial</button>
+                  <button class="disconnect-button" id="whatsapp-disconnect-btn" type="button">Desconectar</button>
+                </div>
+              </div>
+
+              <!-- LINK DE CONVITE OPCIONAL (FALLBACK) -->
+              <div class="whatsapp-fallback-block">
+                <details>
+                  <summary>Ou salvar link de convite tradicional (modo atalho)</summary>
+                  <label class="channel-field" style="margin-top: 8px;">
+                    <span>Link do Grupo (https://chat.whatsapp.com/...)</span>
+                    <input id="whatsapp-group-link" type="url" placeholder="https://chat.whatsapp.com/JpXC7HRpu7N6PmPY6CT8iw" autocomplete="off">
+                  </label>
+                  <button class="secondary-button" id="save-whatsapp-btn" type="button" style="margin-top: 6px;">Salvar Link de Atalho</button>
+                </details>
+              </div>
+            </div>
+
+            <!-- BLOCO TELEGRAM -->
+            <div class="channel-card telegram-card">
+              <div class="channel-card-head">
+                <span class="channel-card-icon telegram-icon">➤</span>
+                <div>
+                  <h3>Bot do Telegram</h3>
+                  <small id="telegram-status-desc">Publicação em 1 clique via bot oficial</small>
+                </div>
+                <span class="channel-badge-active" id="telegram-status-badge">Conectado</span>
+              </div>
+              <p class="channel-desc">Publica a foto com a legenda formatada diretamente no canal ou grupo sem precisar abrir o app.</p>
+              <label class="channel-field">
+                <span>Token do bot (@BotFather)</span>
+                <input id="telegram-token" type="password" autocomplete="off" placeholder="Cole o token do bot...">
+              </label>
+              <div class="channel-btn-row">
+                <button class="secondary-button" id="telegram-discover" type="button">Localizar meu grupo</button>
+              </div>
+              <label class="channel-field">
+                <span>Grupo localizado</span>
+                <select id="telegram-chat">
+                  <option value="">Cole o token e localize o grupo</option>
+                </select>
+              </label>
+              <label class="channel-field">
+                <span>Ou digite o @ do canal / ID</span>
+                <input id="telegram-chat-manual" type="text" autocomplete="off" placeholder="@meucanal ou -1001234567890">
+              </label>
+              <div class="channel-btn-row">
+                <button class="primary-button telegram-save" id="telegram-save" type="button">Salvar Telegram</button>
+                <button class="disconnect-button" id="telegram-disconnect" type="button" title="Desconectar bot atual">Desconectar</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+              <div class="share-status" id="share-status" aria-live="polite"></div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- SEÇÃO: PILOTO AUTOMÁTICO (FILA DE DISPARO AGENDADO) -->
+        <section class="piloto-section" id="piloto-section">
+          <div class="piloto-header">
+            <div>
+              <span class="eyebrow">DISPAROS AGENDADOS & PILOTO AUTOMÁTICO</span>
+              <h2>🤖 Piloto Automático de Ofertas</h2>
+              <p class="piloto-subtitle">Monte sua fila de ofertas e deixe o LinkPronto disparar automaticamente no WhatsApp e Telegram no intervalo que você escolher!</p>
+            </div>
+            <div class="piloto-status-box">
+              <span class="piloto-cloud-badge" id="piloto-cloud-badge" title="Banco de Dados Supabase Conectado">☁️ Supabase Ativo</span>
+              <span class="piloto-status-badge" id="piloto-status-badge">⚪ Pausado</span>
+              <span class="piloto-timer" id="piloto-timer-text">Fila aguardando</span>
+            </div>
+          </div>
+
+          <!-- BARRA DE CONTROLE DO PILOTO AUTOMÁTICO -->
+          <div class="piloto-control-bar">
+            <div class="control-col">
+              <label class="control-label">Intervalo entre ofertas:</label>
+              <select id="queue-interval-select" class="queue-select">
+                <option value="2">A cada 2 minutos (Rápido)</option>
+                <option value="3">A cada 3 minutos</option>
+                <option value="5" selected>A cada 5 minutos (Recomendado)</option>
+                <option value="10">A cada 10 minutos</option>
+                <option value="15">A cada 15 minutos</option>
+                <option value="30">A cada 30 minutos</option>
+                <option value="60">A cada 1 hora</option>
+              </select>
+            </div>
+
+            <div class="control-col">
+              <label class="control-label">⏰ Horário de Disparos:</label>
+              <div class="queue-hours-row">
+                <div class="time-input-group">
+                  <span>Início</span>
+                  <input type="time" id="queue-start-time" value="08:00" class="queue-time-input" title="Horário para começar os disparos no dia">
+                </div>
+                <span class="time-sep">às</span>
+                <div class="time-input-group">
+                  <span>Término</span>
+                  <input type="time" id="queue-end-time" value="22:00" class="queue-time-input" title="Horário para finalizar os disparos no dia">
+                </div>
+              </div>
+            </div>
+
+            <div class="control-col">
+              <label class="control-label">Destinos:</label>
+              <div class="queue-channels-check">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="queue-check-whatsapp" checked>
+                  <span>💬 WhatsApp</span>
+                </label>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="queue-check-telegram" checked>
+                  <span>➤ Telegram</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="control-actions">
+              <button class="primary-button btn-start-piloto" id="start-piloto-btn" type="button">
+                <span>▶️</span> Iniciar Piloto Automático
+              </button>
+              <button class="secondary-button btn-pause-piloto" id="pause-piloto-btn" type="button" hidden>
+                <span>⏸️</span> Pausar Disparos
+              </button>
+              <button class="danger-button btn-clear-piloto" id="clear-piloto-btn" type="button" title="Limpar fila">
+                <span>🗑️</span> Limpar Fila
+              </button>
+            </div>
+          </div>
+
+          <!-- IMPORTADOR RÁPIDO DE MÚLTIPLOS LINKS -->
+          <div class="piloto-quick-add">
+            <details>
+              <summary>⚡ <b>Importar múltiplos links de uma vez só (Fila Rápida)</b></summary>
+              <div class="quick-add-body">
+                <p>Cole vários links da Shopee ou Mercado Livre (um por linha) para puxar e colocar na fila automaticamente:</p>
+                <textarea id="bulk-links-input" rows="4" placeholder="https://shopee.com.br/...\nhttps://produto.mercadolivre.com.br/..."></textarea>
+                <button type="button" class="primary-button" id="bulk-import-btn" style="align-self: flex-start; margin-top: 8px;">
+                  <span>📥</span> Puxar e Adicionar à Fila
+                </button>
+                <div id="bulk-progress-text" class="bulk-progress" hidden></div>
+              </div>
+            </details>
+          </div>
+
+          <!-- LISTA DE OFERTAS NA FILA -->
+          <div class="queue-list-container">
+            <div class="queue-list-header">
+              <h3>Fila de Espera (<span id="queue-count-text">0</span> ofertas)</h3>
+              <small id="queue-duration-text">Tempo estimado: 0 minutos</small>
+            </div>
+
+            <div class="queue-items-grid" id="queue-items-grid">
+              <div class="queue-empty-state">
+                <span>⏳</span>
+                <p>Sua fila está vazia no momento.<br>Busque qualquer produto acima e clique em <b>"Fila Automática"</b> para agendar aqui!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- HISTÓRICO DE DISPAROS REALIZADOS PELO PILOTO AUTOMÁTICO -->
+          <div class="piloto-history-container" id="piloto-history-container" hidden>
+            <div class="queue-list-header">
+              <h3>Disparados Recentemente pelo Piloto</h3>
+            </div>
+            <div class="piloto-history-list" id="piloto-history-list"></div>
+          </div>
+        </section>
+
+        <!-- SEÇÃO: HISTÓRICO RECENTE & RESUMO DO DIA -->
+        <section class="history-section" id="historico-section">
+          <div class="history-header">
+            <div>
+              <span class="eyebrow">MEMÓRIA LOCAL</span>
+              <h2>🕒 Ofertas Recentes & Resumo</h2>
+            </div>
+            <div class="history-actions-bar">
+              <button class="btn-export-summary" id="export-summary-btn" type="button" title="Copiar resumo de todas as ofertas de hoje para postar no grupo">
+                <span>📋</span> Copiar Resumo do Dia
+              </button>
+              <button class="btn-clear-history" id="clear-history-button" type="button">Limpar histórico</button>
+            </div>
+          </div>
+          <div class="history-grid" id="history-grid">
+            <div class="history-empty">Nenhuma oferta gerada ainda nesta sessão. As ofertas criadas aparecerão aqui para você reutilizar rapidamente.</div>
+          </div>
+        </section>
+
+        <!-- COMO FUNCIONA -->
+        <section class="how-section" id="como-funciona">
+          <div class="how-title">
+            <span class="eyebrow">PASSO A PASSO</span>
+            <h2>Como usar o LinkPronto</h2>
+          </div>
+          <div class="steps-grid">
+            <article class="step-card">
+              <span class="step-icon link-step">🔗</span>
+              <span class="step-number">01</span>
+              <h3>Cole seu link de afiliado</h3>
+              <p>Use o link do Mercado Livre ou da Shopee. O link de comissão é preservado.</p>
+            </article>
+            <article class="step-card">
+              <span class="step-icon scan-step">✏️</span>
+              <span class="step-number">02</span>
+              <h3>Revise preço, % OFF e foto</h3>
+              <p>O sistema calcula a porcentagem de desconto e permite colar foto com Ctrl+V.</p>
+            </article>
+            <article class="step-card">
+              <span class="step-icon share-step">🚀</span>
+              <span class="step-number">03</span>
+              <h3>Envie no Telegram e WhatsApp</h3>
+              <p>Dispare direto no Telegram ou copie arte + texto para o grupo do WhatsApp.</p>
+            </article>
+          </div>
+        </section>
+
+        <footer>
+          <span>✦ Mossoró Ofertas — LinkPronto v2.0</span>
+          <span>Feito para divulgar rápido e converter mais.</span>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>

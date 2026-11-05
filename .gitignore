@@ -1,0 +1,11 @@
+.linkpronto-telegram.json
+.linkpronto-telegram.json.tmp
+.linkpronto-whatsapp.json
+.linkpronto-whatsapp.json.tmp
+.linkpronto-whatsapp-auth/
+node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
