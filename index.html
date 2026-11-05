@@ -72,6 +72,9 @@
           <b>Painel de Divulgação</b>
         </div>
         <div class="topbar-right">
+          <a href="https://chat.whatsapp.com/JpXC7HRpu7N6PmPY6CT8iw" target="_blank" rel="noopener noreferrer" class="topbar-wpp-btn" id="topbar-wpp-link" title="Abrir grupo oficial no WhatsApp">
+            <span>💬</span> Grupo de Ofertas
+          </a>
           <span class="online-dot" title="Servidor local ativo"></span>
           <span class="daily-badge" id="daily-count-badge">🔥 0 ofertas hoje</span>
           <button class="theme-toggle" id="theme-toggle" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema">
@@ -330,56 +333,79 @@
               <div class="channel-card-head">
                 <span class="channel-card-icon whatsapp-icon">💬</span>
                 <div>
-                  <h3>WhatsApp (Envio em 1 Clique)</h3>
-                  <small id="whatsapp-conn-desc">Conecte via QR Code para disparar sem abrir o app</small>
+                  <h3>WhatsApp & Grupo de Ofertas</h3>
+                  <small id="whatsapp-conn-desc">Link direto do grupo e automação</small>
                 </div>
                 <span class="channel-badge-active" id="whatsapp-status-badge">Desconectado</span>
               </div>
 
-              <!-- ESTADO 1: DESCONECTADO OU AGUARDANDO QR -->
-              <div id="whatsapp-disconnected-box">
-                <p class="channel-desc">Para enviar direto para o grupo com <b>1 clique real</b>, conecte seu WhatsApp uma única vez lendo o QR Code.</p>
-                <button class="primary-button btn-connect-wpp" id="whatsapp-start-btn" type="button">
-                  <span>📲</span> Conectar WhatsApp (Gerar QR Code)
-                </button>
-                <div class="whatsapp-qr-box" id="whatsapp-qr-box" hidden>
-                  <div class="qr-spinner" id="qr-spinner">
-                    <span class="spinner"></span>
-                    <span>Gerando QR Code...</span>
+              <!-- LINK DIRETO DO GRUPO (SEMPRE VISÍVEL) -->
+              <div class="whatsapp-direct-link-card">
+                <div class="direct-link-header">
+                  <span class="status-dot-active">🟢</span>
+                  <div>
+                    <b>Grupo Oficial Vinculado:</b>
+                    <span id="linked-group-name" class="linked-name">Ofertas Mossoró</span>
                   </div>
-                  <img id="whatsapp-qr-img" alt="QR Code do WhatsApp" hidden>
-                  <p class="qr-instructions">Abra o WhatsApp no celular > <b>Aparelhos Conectados</b> > <b>Conectar um aparelho</b> e aponte a câmera.</p>
                 </div>
-              </div>
-
-              <!-- ESTADO 2: CONECTADO -->
-              <div id="whatsapp-connected-box" hidden>
-                <p class="channel-desc">✅ <b>WhatsApp Conectado!</b> Escolha qual dos seus grupos receberá os disparos das ofertas:</p>
-                <label class="channel-field">
-                  <span>Selecione seu Grupo de Ofertas</span>
-                  <div class="select-row">
-                    <select id="whatsapp-group-select">
-                      <option value="">Carregando grupos...</option>
-                    </select>
-                    <button class="icon-refresh-btn" id="whatsapp-refresh-groups" type="button" title="Atualizar lista de grupos">↻</button>
-                  </div>
-                </label>
-                <div class="channel-btn-row">
-                  <button class="primary-button" id="whatsapp-save-group-btn" type="button">Salvar Grupo Oficial</button>
-                  <button class="disconnect-button" id="whatsapp-disconnect-btn" type="button">Desconectar</button>
+                
+                <div class="direct-link-actions">
+                  <a href="https://chat.whatsapp.com/JpXC7HRpu7N6PmPY6CT8iw" target="_blank" rel="noopener noreferrer" class="primary-button btn-open-group" id="btn-open-group-link">
+                    <span>🔗</span> Abrir Grupo no WhatsApp
+                  </a>
                 </div>
-              </div>
 
-              <!-- LINK DE CONVITE OPCIONAL (FALLBACK) -->
-              <div class="whatsapp-fallback-block">
-                <details>
-                  <summary>Ou salvar link de convite tradicional (modo atalho)</summary>
-                  <label class="channel-field" style="margin-top: 8px;">
-                    <span>Link do Grupo (https://chat.whatsapp.com/...)</span>
-                    <input id="whatsapp-group-link" type="url" placeholder="https://chat.whatsapp.com/JpXC7HRpu7N6PmPY6CT8iw" autocomplete="off">
+                <div class="direct-link-edit">
+                  <label class="channel-field">
+                    <span>Link Oficial de Convite do seu Grupo:</span>
+                    <div class="link-save-row">
+                      <input id="whatsapp-group-link" type="url" value="https://chat.whatsapp.com/JpXC7HRpu7N6PmPY6CT8iw" placeholder="https://chat.whatsapp.com/..." autocomplete="off">
+                      <button class="secondary-button" id="save-whatsapp-btn" type="button">Salvar Link</button>
+                    </div>
                   </label>
-                  <button class="secondary-button" id="save-whatsapp-btn" type="button" style="margin-top: 6px;">Salvar Link de Atalho</button>
-                </details>
+                </div>
+              </div>
+
+              <!-- ROBÔ DE DISPARO AUTOMÁTICO (QR CODE) -->
+              <div class="whatsapp-bot-box">
+                <div class="bot-box-title">
+                  <span>🤖</span>
+                  <b>Robô de Disparo em 1 Clique (Piloto Automático na Nuvem)</b>
+                </div>
+
+                <!-- ESTADO 1: DESCONECTADO OU AGUARDANDO QR -->
+                <div id="whatsapp-disconnected-box">
+                  <p class="channel-desc">Para disparar automaticamente pela nuvem no Piloto Automático, conecte seu WhatsApp uma vez pelo QR Code:</p>
+                  <button class="secondary-button btn-connect-wpp" id="whatsapp-start-btn" type="button">
+                    <span>📲</span> Conectar WhatsApp (Gerar QR Code)
+                  </button>
+                  <div class="whatsapp-qr-box" id="whatsapp-qr-box" hidden>
+                    <div class="qr-spinner" id="qr-spinner">
+                      <span class="spinner"></span>
+                      <span>Gerando QR Code...</span>
+                    </div>
+                    <img id="whatsapp-qr-img" alt="QR Code do WhatsApp" hidden>
+                    <p class="qr-instructions">Abra o WhatsApp no celular > <b>Aparelhos Conectados</b> > <b>Conectar um aparelho</b> e aponte a câmera.</p>
+                  </div>
+                </div>
+
+                <!-- ESTADO 2: CONECTADO -->
+                <div id="whatsapp-connected-box" hidden>
+                  <p class="channel-desc">✅ <b>Robô Conectado na Nuvem!</b> Disparos automáticos ativos para o grupo:</p>
+                  <label class="channel-field">
+                    <span>Grupo de destino:</span>
+                    <div class="select-row">
+                      <select id="whatsapp-group-select">
+                        <option value="">Carregando grupos...</option>
+                      </select>
+                      <button class="icon-refresh-btn" id="whatsapp-refresh-groups" type="button" title="Atualizar lista de grupos">↻</button>
+                    </div>
+                  </label>
+                  <div class="channel-btn-row">
+                    <button class="primary-button" id="whatsapp-save-group-btn" type="button">Salvar Grupo Oficial</button>
+                    <button class="disconnect-button" id="whatsapp-disconnect-btn" type="button">Desconectar</button>
+                  </div>
+                </div>
               </div>
             </div>
 

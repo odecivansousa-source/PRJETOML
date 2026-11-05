@@ -1310,12 +1310,104 @@ body.dark-mode .story-subbutton.highlight {
 
 .disconnect-button:hover { background: var(--red-light); }
 
-.share-status {
-  min-height: 18px;
-  margin-top: 10px;
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 600;
+.topbar-wpp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(37, 211, 102, 0.15);
+  color: #128c7e;
+  border: 1px solid rgba(37, 211, 102, 0.3);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.topbar-wpp-btn:hover {
+  background: #25d366;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.whatsapp-direct-link-card {
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.direct-link-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  margin-bottom: 12px;
+}
+
+.linked-name {
+  color: var(--purple);
+  font-weight: 800;
+  margin-left: 4px;
+}
+
+.btn-open-group {
+  width: 100%;
+  text-decoration: none;
+  background: #25d366;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.25);
+  transition: all 0.2s ease;
+}
+.btn-open-group:hover {
+  background: #1eb956;
+  transform: translateY(-1px);
+}
+
+.direct-link-edit {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.link-save-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.link-save-row input {
+  flex: 1;
+}
+.link-save-row button {
+  width: auto;
+  margin-top: 0;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.whatsapp-bot-box {
+  background: var(--paper);
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.bot-box-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink);
+  margin-bottom: 10px;
 }
 
 /* SEÇÃO: HISTÓRICO RECENTE */

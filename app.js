@@ -999,11 +999,24 @@ whatsappQuickButton?.addEventListener('click', async () => {
   }
 });
 
-// Salvar Link de Atalho Fallback
-saveWhatsappBtn?.addEventListener('click', () => {
+function applyGroupLink(link) {
+  if (!link) return;
+  const topbarLink = $('#topbar-wpp-link');
+  const btnOpen = $('#btn-open-group-link');
+  if (topbarLink) topbarLink.href = link;
+  if (btnOpen) btnOpen.href = link;
+  if (whatsappGroupInput) whatsappGroupInput.value = link;
+}
+
+// Salvar Link Oficial do Grupo
+saveWhatsappBtn?.addEventListener('click', async () => {
   const link = (whatsappGroupInput?.value || '').trim() || DEFAULT_WHATSAPP_GROUP;
   localStorage.setItem(WHATSAPP_KEY, link);
-  showToast('Link de atalho do WhatsApp salvo!');
+  applyGroupLink(link);
+  showToast('✅ Link do grupo salvo com sucesso!');
+  try {
+    await postJson('/api/queue/config', { whatsappGroupLink: link });
+  } catch {}
 });
 
 // Navegação suave da Sidebar para Seções
@@ -1865,7 +1878,7 @@ linkInput.addEventListener('paste', () => {
 // Inicialização do WhatsApp
 function initWhatsApp() {
   const savedGroupLink = localStorage.getItem(WHATSAPP_KEY) || DEFAULT_WHATSAPP_GROUP;
-  if (whatsappGroupInput) whatsappGroupInput.value = savedGroupLink;
+  applyGroupLink(savedGroupLink);
   refreshWhatsAppStatus();
 }
 
