@@ -1,3 +1,7 @@
+[hidden] {
+  display: none !important;
+}
+
 :root {
   --ink: #1e1b29;
   --ink-secondary: #4a4756;

@@ -487,12 +487,14 @@ function startManualOffer(customLink = '') {
 }
 
 $('#manual-compose-button').addEventListener('click', () => {
+  if (!checkAuthAccess()) return;
   startManualOffer();
 });
 
 // Busca de Produto
 form.addEventListener('submit', async event => {
   event.preventDefault();
+  if (!checkAuthAccess()) return;
   const link = linkInput.value.trim();
   errorBox.hidden = true;
 
@@ -765,6 +767,7 @@ $('#telegram-disconnect').addEventListener('click', async () => {
 });
 
 $('#telegram-send-button').addEventListener('click', async () => {
+  if (!checkAuthAccess()) return;
   if (!product) return;
   const button = $('#telegram-send-button');
   button.disabled = true;
@@ -959,6 +962,7 @@ whatsappDisconnectBtn?.addEventListener('click', async () => {
 
 // Envio para WhatsApp (1 Clique Real se Conectado / Fallback se não conectado)
 whatsappQuickButton?.addEventListener('click', async () => {
+  if (!checkAuthAccess()) return;
   if (!product) return;
   const button = whatsappQuickButton;
   button.disabled = true;
@@ -1674,6 +1678,7 @@ function updateCountdown() {
 
 // Botão Adicionar à Fila do Produto Atual
 addToQueueBtn?.addEventListener('click', async () => {
+  if (!checkAuthAccess()) return;
   if (!product) {
     showToast('Busque um produto primeiro para poder adicionar à fila!', true);
     return;
@@ -1723,6 +1728,7 @@ addToQueueBtn?.addEventListener('click', async () => {
 
 // Botão Iniciar Piloto Automático
 startPilotoBtn?.addEventListener('click', async () => {
+  if (!checkAuthAccess()) return;
   startPilotoBtn.disabled = true;
   try {
     const res = await postJson('/api/queue/start', { triggerImmediately: true });
@@ -1815,6 +1821,7 @@ queueCheckTelegram?.addEventListener('change', async () => {
 
 // Importador Rápido de Múltiplos Links
 bulkImportBtn?.addEventListener('click', async () => {
+  if (!checkAuthAccess()) return;
   const text = bulkLinksInput.value.trim();
   if (!text) {
     showToast('Cole os links dos produtos na caixa de texto primeiro.', true);
@@ -1920,6 +1927,7 @@ const newUserErrorBox = $('#new-user-error-box');
 
 const expiredModal = $('#expired-modal');
 const btnExpiredLogout = $('#btn-expired-logout');
+const apresentacaoSection = $('#apresentacao-section');
 
 // Elementos Admin
 const metricTotalUsers = $('#metric-total-users');
@@ -1929,27 +1937,35 @@ const metricExpiredUsers = $('#metric-expired-users');
 const adminUsersList = $('#admin-users-list');
 const btnRefreshUsers = $('#btn-refresh-users');
 
+function checkAuthAccess() {
+  if (!currentAuthUser) {
+    openLoginModal();
+    showToast('🔐 Faça login com sua conta ou assine por R$ 30 para usar a ferramenta.', true);
+    return false;
+  }
+  if (currentAuthUser.isExpired && currentAuthUser.role !== 'admin') {
+    if (expiredModal) {
+      expiredModal.hidden = false;
+      expiredModal.style.display = 'flex';
+    }
+    showToast('⏰ Seu acesso de 30 dias expirou. Renove pelo WhatsApp.', true);
+    return false;
+  }
+  return true;
+}
+
 function loadSession() {
   try {
     const saved = localStorage.getItem(USER_SESSION_KEY);
     if (saved) {
       currentAuthUser = JSON.parse(saved);
-      updateAuthUI();
     } else {
-      // Login inicial automático como Admin para Odecivan
-      currentAuthUser = {
-        id: '00000000-0000-0000-0000-000000000001',
-        name: 'Odecivan (Administrador)',
-        email: 'odecivansousa@gmail.com',
-        role: 'admin',
-        daysLeft: 9999,
-        isExpired: false
-      };
-      saveSession(currentAuthUser);
+      currentAuthUser = null;
     }
   } catch (e) {
     currentAuthUser = null;
   }
+  updateAuthUI();
 }
 
 function saveSession(user) {
@@ -1972,6 +1988,7 @@ function updateAuthUI() {
   if (currentAuthUser) {
     if (btnLoginOpen) btnLoginOpen.hidden = true;
     if (userLoggedInfo) userLoggedInfo.hidden = false;
+    if (apresentacaoSection) apresentacaoSection.hidden = true;
 
     const isAdmin = currentAuthUser.role === 'admin';
     if (userNameText) userNameText.textContent = currentAuthUser.name?.split(' ')[0] || 'Usuário';
@@ -2025,6 +2042,7 @@ function updateAuthUI() {
     if (userLoggedInfo) userLoggedInfo.hidden = true;
     if (navAdminLink) navAdminLink.hidden = true;
     if (adminSection) adminSection.hidden = true;
+    if (apresentacaoSection) apresentacaoSection.hidden = false;
     if (expiredModal) {
       expiredModal.hidden = true;
       expiredModal.style.display = 'none';
@@ -2032,8 +2050,8 @@ function updateAuthUI() {
 
     if (sideUserName) sideUserName.textContent = 'DISPARALINK74';
     if (sideUserAvatar) sideUserAvatar.textContent = 'D';
-    if (sideUserRole) sideUserRole.textContent = 'Automação & Vendas';
-    if (sideSubInfo) sideSubInfo.textContent = 'R$ 30 / 30 Dias';
+    if (sideUserRole) sideUserRole.textContent = 'Visitante';
+    if (sideSubInfo) sideSubInfo.textContent = 'Assine por R$ 30';
   }
 }
 
