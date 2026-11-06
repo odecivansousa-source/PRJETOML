@@ -41,6 +41,13 @@ try {
   console.warn('Módulo Scheduler indisponível:', e.message);
 }
 
+let db;
+try {
+  db = require('./supabase');
+} catch (e) {
+  console.warn('Módulo Supabase indisponível:', e.message);
+}
+
 const BROWSER_HEADERS = {
   'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
   'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -868,6 +875,80 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, { ok: true, message: `Oferta enviada para ${config.chatTitle}!` });
     } catch (error) {
       sendJson(response, 400, { ok: false, error: error.message || 'Não foi possível publicar no Telegram.' });
+    }
+    return;
+  }
+
+  // ==========================================
+  // ROTAS DE AUTENTICAÇÃO E ADMINISTRAÇÃO (SAAS)
+  // ==========================================
+  if (requestUrl.pathname === '/api/auth/login' && request.method === 'POST') {
+    try {
+      const body = await readJsonBody(request);
+      if (!db) throw new Error('Serviço de autenticação temporariamente indisponível.');
+      const user = await db.loginUser(body.email, body.password);
+      sendJson(response, 200, { ok: true, user });
+    } catch (err) {
+      sendJson(response, 400, { ok: false, error: err.message });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === '/api/admin/users' && request.method === 'GET') {
+    try {
+      if (!db) throw new Error('Banco de dados indisponível.');
+      const users = await db.listUsers();
+      sendJson(response, 200, { ok: true, users });
+    } catch (err) {
+      sendJson(response, 500, { ok: false, error: err.message });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === '/api/admin/users/create' && request.method === 'POST') {
+    try {
+      const body = await readJsonBody(request);
+      if (!db) throw new Error('Banco de dados indisponível.');
+      const user = await db.createUser(body);
+      sendJson(response, 200, { ok: true, user, message: 'Cliente cadastrado com sucesso!' });
+    } catch (err) {
+      sendJson(response, 400, { ok: false, error: err.message });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === '/api/admin/users/renew' && request.method === 'POST') {
+    try {
+      const body = await readJsonBody(request);
+      if (!db) throw new Error('Banco de dados indisponível.');
+      const user = await db.renewUserAccess(body.userId, body.days || 30);
+      sendJson(response, 200, { ok: true, user, message: 'Acesso renovado com sucesso!' });
+    } catch (err) {
+      sendJson(response, 400, { ok: false, error: err.message });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === '/api/admin/users/status' && request.method === 'POST') {
+    try {
+      const body = await readJsonBody(request);
+      if (!db) throw new Error('Banco de dados indisponível.');
+      const user = await db.toggleUserStatus(body.userId, body.status);
+      sendJson(response, 200, { ok: true, user });
+    } catch (err) {
+      sendJson(response, 400, { ok: false, error: err.message });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === '/api/admin/users/delete' && request.method === 'POST') {
+    try {
+      const body = await readJsonBody(request);
+      if (!db) throw new Error('Banco de dados indisponível.');
+      await db.deleteUser(body.userId);
+      sendJson(response, 200, { ok: true, message: 'Cliente excluído com sucesso.' });
+    } catch (err) {
+      sendJson(response, 400, { ok: false, error: err.message });
     }
     return;
   }

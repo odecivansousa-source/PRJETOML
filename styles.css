@@ -2342,3 +2342,743 @@ body.dark-mode .whatsapp-qr-box {
   border-radius: 10px;
   font-size: 13px;
 }
+
+/* ==========================================
+   DISPARALINK74 — SAAS & APRESENTAÇÃO HERO
+========================================== */
+
+.saas-hero-card {
+  background: linear-gradient(135deg, rgba(113, 80, 237, 0.08) 0%, rgba(37, 211, 102, 0.06) 100%);
+  border: 1px solid rgba(113, 80, 237, 0.2);
+  border-radius: 24px;
+  padding: 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 10px 30px rgba(113, 80, 237, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.saas-hero-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.hero-sparkle-badge {
+  background: var(--purple);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+.hero-sub-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+
+.saas-hero-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .saas-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hero-text-col h1 {
+  font-family: var(--display);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+
+.hero-text-col h1 span {
+  background: linear-gradient(135deg, var(--purple), #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-desc {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.hero-feature-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feat-tag {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+/* CARD DE VENDA (R$ 30 / 30 DIAS) */
+.pricing-sales-card {
+  background: var(--paper);
+  border: 2px solid var(--purple);
+  border-radius: 20px;
+  padding: 26px;
+  box-shadow: 0 12px 36px rgba(113, 80, 237, 0.12);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-ribbon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: #ec4899;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+}
+
+.plan-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 6px 0 8px;
+}
+
+.plan-price .currency {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.plan-price .amount {
+  font-family: var(--display);
+  font-size: 42px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.plan-price .period {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.plan-desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.plan-check-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-check-list li {
+  font-size: 13px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-check-list li span {
+  color: var(--green);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.pricing-cta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-buy-pix {
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+  transition: all 0.2s ease;
+}
+.btn-buy-pix:hover {
+  background: #1eb956;
+  transform: translateY(-2px);
+}
+
+.btn-client-login-hero {
+  background: var(--purple-light);
+  color: var(--purple);
+  border: 1px solid var(--purple-border);
+  height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-client-login-hero:hover {
+  background: var(--purple);
+  color: #fff;
+}
+
+/* BARRA DE LOGIN NA TOPBAR */
+.user-auth-bar {
+  display: flex;
+  align-items: center;
+}
+
+.btn-login-open {
+  background: var(--purple-light);
+  color: var(--purple);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-login-open:hover {
+  background: var(--purple);
+  color: #fff;
+}
+
+.user-logged-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-role-badge {
+  background: rgba(113, 80, 237, 0.12);
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.user-name-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-days-pill {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.user-days-pill.warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+.user-days-pill.expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red);
+}
+
+.btn-logout {
+  background: transparent;
+  border: none;
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.btn-logout:hover {
+  color: var(--red);
+}
+
+/* ==========================================
+   PAINEL DO ADMINISTRADOR (SAAS)
+========================================== */
+
+.admin-section {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 36px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.admin-header h2 {
+  font: 800 22px var(--display);
+  color: var(--ink);
+  margin: 4px 0 0;
+}
+
+.admin-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.btn-add-user {
+  background: var(--purple);
+  color: #fff;
+  font-weight: 700;
+  padding: 0 18px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-add-user:hover {
+  background: #5b3bd1;
+}
+
+.admin-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.metric-card {
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.metric-card.highlight-green {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.04);
+}
+.metric-card.highlight-amber {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.04);
+}
+.metric-card.highlight-red {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.metric-icon {
+  font-size: 26px;
+}
+
+.metric-card b {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.metric-card small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.admin-table-container {
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.admin-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.admin-table-header h3 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0;
+}
+
+.admin-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-user-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  transition: all 0.2s ease;
+}
+.admin-user-card:hover {
+  border-color: var(--purple);
+  box-shadow: 0 4px 12px rgba(113, 80, 237, 0.06);
+}
+
+.user-card-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.user-card-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--purple-light);
+  color: var(--purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.user-card-info b {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.user-card-info small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.user-card-status-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.client-status-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  width: fit-content;
+}
+.client-status-badge.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+}
+.client-status-badge.warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+.client-status-badge.expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red);
+}
+
+.user-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-renew-pill {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-renew-pill:hover {
+  background: #059669;
+}
+
+.btn-wpp-chat {
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-wpp-chat:hover {
+  background: #1eb956;
+}
+
+.btn-user-action {
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn-user-action.danger {
+  color: var(--red);
+  border-color: #fecaca;
+}
+.btn-user-action.danger:hover {
+  background: var(--red-light);
+}
+
+/* ==========================================
+   MODAIS CUSTOMIZADOS (LOGIN, CADASTRO, EXPIRADO)
+========================================== */
+
+.custom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 13, 24, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.custom-modal-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  padding: 26px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  position: relative;
+  animation: modalIn 0.2s ease-out;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.modal-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--purple);
+  letter-spacing: 0.05em;
+}
+
+.modal-head h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 4px 0 0;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: var(--soft);
+  cursor: pointer;
+  padding: 4px;
+}
+.modal-close-btn:hover {
+  color: var(--ink);
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.modal-field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.modal-field input {
+  height: 42px;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+  outline: none;
+}
+.modal-field input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px var(--purple-glow);
+}
+
+.modal-error-box {
+  background: var(--red-light);
+  border: 1px solid #fecaca;
+  color: var(--red);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.modal-actions-row {
+  margin-top: 18px;
+}
+
+.btn-login-submit {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.modal-footer-help {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px dashed var(--line);
+  padding-top: 12px;
+}
+
+.modal-footer-help a {
+  color: var(--purple);
+  text-decoration: none;
+}
+.modal-footer-help a:hover {
+  text-decoration: underline;
+}
+
+/* MODAL DE PAYWALL / EXPIRADO */
+.paywall-modal-card {
+  text-align: center;
+  max-width: 480px;
+  padding: 34px 26px;
+}
+
+.paywall-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.paywall-modal-card h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+
+.paywall-modal-card p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.paywall-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-paywall-wpp {
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.3);
+}
+.btn-paywall-wpp:hover {
+  background: #1eb956;
+}
+

@@ -13,16 +13,207 @@ try {
   console.warn('[Supabase] Falha ao inicializar cliente:', err.message);
 }
 
-// Configurações Globais
-async function fetchSettings() {
+// ==========================================
+// AUTENTICAÇÃO E GESTÃO DE CLIENTES (SAAS)
+// ==========================================
+
+async function loginUser(email, password) {
+  if (!supabase) throw new Error('Banco de dados indisponível no momento.');
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanPass = String(password || '').trim();
+
+  if (!cleanEmail || !cleanPass) {
+    throw new Error('Preencha seu e-mail e senha para entrar.');
+  }
+
+  const { data: user, error } = await supabase
+    .from('linkpronto_users')
+    .select('*')
+    .eq('email', cleanEmail)
+    .maybeSingle();
+
+  if (error || !user) {
+    throw new Error('E-mail ou senha incorretos. Caso queira assinar, chame no WhatsApp!');
+  }
+
+  if (user.password !== cleanPass) {
+    throw new Error('E-mail ou senha incorretos.');
+  }
+
+  if (user.status === 'blocked') {
+    throw new Error('Seu acesso está bloqueado. Fale com o suporte no WhatsApp.');
+  }
+
+  // Verifica expiração de acesso
+  const now = new Date();
+  const expiresAt = new Date(user.access_expires_at);
+  const isExpired = user.role !== 'admin' && expiresAt < now;
+  const daysLeft = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    whatsapp: user.whatsapp,
+    role: user.role,
+    status: isExpired ? 'expired' : user.status,
+    isExpired,
+    daysLeft: user.role === 'admin' ? 9999 : Math.max(0, daysLeft),
+    accessExpiresAt: user.access_expires_at
+  };
+}
+
+async function listUsers() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('linkpronto_users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const now = new Date();
+    return (data || []).map(u => {
+      const expiresAt = new Date(u.access_expires_at);
+      const isExpired = u.role !== 'admin' && expiresAt < now;
+      const daysLeft = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        whatsapp: u.whatsapp,
+        role: u.role,
+        status: isExpired ? 'expired' : u.status,
+        daysLeft: u.role === 'admin' ? 9999 : daysLeft,
+        accessExpiresAt: u.access_expires_at,
+        createdAt: u.created_at,
+        notes: u.notes || ''
+      };
+    });
+  } catch (e) {
+    console.warn('[Supabase] Erro ao listar usuários:', e.message);
+    return [];
+  }
+}
+
+async function createUser({ name, email, password, whatsapp, days = 30, notes = '' }) {
+  if (!supabase) throw new Error('Banco de dados indisponível.');
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanPass = String(password || '').trim();
+  const cleanName = String(name || '').trim();
+  const cleanWhats = String(whatsapp || '').replace(/\D/g, '');
+
+  if (!cleanEmail || !cleanPass || !cleanName) {
+    throw new Error('Nome, e-mail e senha são obrigatórios.');
+  }
+
+  const daysNum = Number(days) || 30;
+  const expiresAt = new Date(Date.now() + daysNum * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('linkpronto_users')
+    .insert({
+      name: cleanName,
+      email: cleanEmail,
+      password: cleanPass,
+      whatsapp: cleanWhats,
+      role: 'client',
+      status: 'active',
+      access_expires_at: expiresAt,
+      notes
+    })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') throw new Error('Já existe um cliente cadastrado com este e-mail.');
+    throw new Error(error.message);
+  }
+
+  // Cria configuração padrão para o novo cliente
+  await updateSettings({
+    shopeeAffiliateId: '',
+    intervalMinutes: 5,
+    startTime: '08:00',
+    endTime: '22:00',
+    sendWhatsApp: true,
+    sendTelegram: true
+  }, data.id);
+
+  return data;
+}
+
+async function renewUserAccess(userId, additionalDays = 30) {
+  if (!supabase) throw new Error('Banco de dados indisponível.');
+  const { data: user, error: getErr } = await supabase
+    .from('linkpronto_users')
+    .select('access_expires_at')
+    .eq('id', userId)
+    .single();
+
+  if (getErr || !user) throw new Error('Cliente não encontrado.');
+
+  const currentExp = new Date(user.access_expires_at);
+  const baseTime = currentExp > new Date() ? currentExp.getTime() : Date.now();
+  const newExp = new Date(baseTime + Number(additionalDays) * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('linkpronto_users')
+    .update({
+      access_expires_at: newExp,
+      status: 'active',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function toggleUserStatus(userId, newStatus) {
+  if (!supabase) throw new Error('Banco de dados indisponível.');
+  const { data, error } = await supabase
+    .from('linkpronto_users')
+    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function deleteUser(userId) {
+  if (!supabase) throw new Error('Banco de dados indisponível.');
+  await supabase.from('linkpronto_queue').delete().eq('user_id', userId);
+  await supabase.from('linkpronto_settings').delete().eq('id', userId);
+  const { error } = await supabase.from('linkpronto_users').delete().eq('id', userId);
+  if (error) throw error;
+  return { ok: true };
+}
+
+// ==========================================
+// CONFIGURAÇÕES GLOBAIS E POR CLIENTE
+// ==========================================
+
+async function fetchSettings(userId = 'default') {
   if (!supabase) return null;
   try {
+    const targetId = String(userId || 'default');
     const { data, error } = await supabase
       .from('linkpronto_settings')
       .select('*')
-      .eq('id', 'default')
+      .eq('id', targetId)
       .maybeSingle();
+
     if (error) throw error;
+    if (!data && targetId !== 'default') {
+      // Se não tem settings específicas, clona as da default
+      const def = await fetchSettings('default');
+      return def;
+    }
     return data;
   } catch (e) {
     console.warn('[Supabase] Erro ao carregar configurações:', e.message);
@@ -30,11 +221,13 @@ async function fetchSettings() {
   }
 }
 
-async function updateSettings(settings) {
+async function updateSettings(settings, userId = 'default') {
   if (!supabase) return null;
   try {
+    const targetId = String(userId || 'default');
     const payload = {
-      id: 'default',
+      id: targetId,
+      user_id: targetId,
       updated_at: new Date().toISOString()
     };
     if (settings.intervalMinutes !== undefined) payload.interval_minutes = Number(settings.intervalMinutes);
@@ -48,6 +241,8 @@ async function updateSettings(settings) {
     if (settings.telegramChatTitle !== undefined) payload.telegram_chat_title = settings.telegramChatTitle;
     if (settings.whatsappGroupId !== undefined) payload.whatsapp_group_id = settings.whatsappGroupId;
     if (settings.whatsappGroupName !== undefined) payload.whatsapp_group_name = settings.whatsappGroupName;
+    if (settings.whatsappGroupLink !== undefined) payload.whatsapp_group_link = settings.whatsappGroupLink;
+    if (settings.shopeeAffiliateId !== undefined) payload.shopee_affiliate_id = settings.shopeeAffiliateId;
 
     const { data, error } = await supabase
       .from('linkpronto_settings')
@@ -62,13 +257,18 @@ async function updateSettings(settings) {
   }
 }
 
-// Fila de Disparo (Queue)
-async function fetchQueue() {
+// ==========================================
+// FILA DE DISPARO (QUEUE) POR USUÁRIO
+// ==========================================
+
+async function fetchQueue(userId = 'default') {
   if (!supabase) return [];
   try {
+    const targetUser = String(userId || 'default');
     const { data, error } = await supabase
       .from('linkpronto_queue')
       .select('*')
+      .eq('user_id', targetUser)
       .eq('status', 'pending')
       .order('order_index', { ascending: true });
     if (error) throw error;
@@ -84,7 +284,8 @@ async function fetchQueue() {
       store: row.store || 'Oferta',
       details: row.details || '',
       theme: row.theme || 'purple',
-      createdAt: new Date(row.created_at).getTime()
+      createdAt: new Date(row.created_at).getTime(),
+      userId: row.user_id || 'default'
     }));
   } catch (e) {
     console.warn('[Supabase] Erro ao buscar fila:', e.message);
@@ -92,13 +293,15 @@ async function fetchQueue() {
   }
 }
 
-async function addQueueItem(item) {
+async function addQueueItem(item, userId = 'default') {
   if (!supabase) return null;
   try {
+    const targetUser = String(userId || 'default');
     const { data, error } = await supabase
       .from('linkpronto_queue')
       .insert({
         id: item.id,
+        user_id: targetUser,
         title: item.title,
         price: item.price,
         original_price: item.originalPrice,
@@ -121,19 +324,24 @@ async function addQueueItem(item) {
   }
 }
 
-async function removeQueueItem(id) {
+async function removeQueueItem(id, userId = 'default') {
   if (!supabase) return;
   try {
-    await supabase.from('linkpronto_queue').delete().eq('id', id);
+    let query = supabase.from('linkpronto_queue').delete().eq('id', id);
+    if (userId && userId !== 'all') {
+      query = query.eq('user_id', userId);
+    }
+    await query;
   } catch (e) {
     console.warn('[Supabase] Erro ao remover item da fila:', e.message);
   }
 }
 
-async function clearQueueItems() {
+async function clearQueueItems(userId = 'default') {
   if (!supabase) return;
   try {
-    await supabase.from('linkpronto_queue').delete().neq('id', '');
+    const targetUser = String(userId || 'default');
+    await supabase.from('linkpronto_queue').delete().eq('user_id', targetUser);
   } catch (e) {
     console.warn('[Supabase] Erro ao limpar fila:', e.message);
   }
@@ -151,11 +359,16 @@ async function markQueueItemProcessed(id, status = 'sent') {
   }
 }
 
-// Histórico de Disparos
-async function recordHistoryItem(item) {
+// ==========================================
+// HISTÓRICO DE DISPAROS
+// ==========================================
+
+async function recordHistoryItem(item, userId = 'default') {
   if (!supabase) return;
   try {
+    const targetUser = String(userId || 'default');
     await supabase.from('linkpronto_history').insert({
+      user_id: targetUser,
       title: item.title,
       price: item.price,
       original_price: item.originalPrice,
@@ -171,12 +384,14 @@ async function recordHistoryItem(item) {
   }
 }
 
-async function fetchRecentHistory(limit = 15) {
+async function fetchRecentHistory(limit = 15, userId = 'default') {
   if (!supabase) return [];
   try {
+    const targetUser = String(userId || 'default');
     const { data, error } = await supabase
       .from('linkpronto_history')
       .select('*')
+      .eq('user_id', targetUser)
       .order('sent_at', { ascending: false })
       .limit(limit);
     if (error) throw error;
@@ -198,7 +413,10 @@ async function fetchRecentHistory(limit = 15) {
   }
 }
 
-// Sincronização de credenciais de sessão do WhatsApp no Supabase
+// ==========================================
+// SESSÃO DO WHATSAPP
+// ==========================================
+
 async function saveAuthCredential(key, value) {
   if (!supabase) return;
   try {
@@ -207,9 +425,7 @@ async function saveAuthCredential(key, value) {
       value: typeof value === 'string' ? value : JSON.stringify(value),
       updated_at: new Date().toISOString()
     });
-  } catch (e) {
-    // Silencioso para não poluir logs
-  }
+  } catch (e) {}
 }
 
 async function loadAuthCredential(key) {
@@ -231,15 +447,14 @@ async function loadAuthCredential(key) {
   }
 }
 
-async function removeAuthCredential(key) {
-  if (!supabase) return;
-  try {
-    await supabase.from('linkpronto_whatsapp_auth').delete().eq('key', key);
-  } catch {}
-}
-
 module.exports = {
   supabase,
+  loginUser,
+  listUsers,
+  createUser,
+  renewUserAccess,
+  toggleUserStatus,
+  deleteUser,
   fetchSettings,
   updateSettings,
   fetchQueue,
@@ -250,6 +465,5 @@ module.exports = {
   recordHistoryItem,
   fetchRecentHistory,
   saveAuthCredential,
-  loadAuthCredential,
-  removeAuthCredential
+  loadAuthCredential
 };
