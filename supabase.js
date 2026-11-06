@@ -265,9 +265,21 @@ async function fetchSettings(userId = 'default') {
 
     if (error) throw error;
     if (!data && targetId !== 'default') {
-      // Se não tem settings específicas, clona as da default
-      const def = await fetchSettings('default');
-      return def;
+      return {
+        id: targetId,
+        user_id: targetId,
+        interval_minutes: 5,
+        start_time: '08:00',
+        end_time: '22:00',
+        is_running: false,
+        send_whatsapp: true,
+        send_telegram: false,
+        whatsapp_group_link: '',
+        telegram_token: '',
+        telegram_chat_id: '',
+        telegram_chat_title: '',
+        shopee_affiliate_id: ''
+      };
     }
     return data;
   } catch (e) {

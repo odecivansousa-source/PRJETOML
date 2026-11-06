@@ -56,6 +56,20 @@ let currentCopyStyle = 'padrao'; // 'padrao' | 'urgente' | 'curto'
 let currentArtFormat = 'feed';   // 'feed' (1:1) | 'story' (9:16)
 let currentArtTheme = 'purple';  // 'purple' | 'shopee' | 'meli' | 'dark'
 
+let currentAuthUser = null;
+
+function getActiveUserId() {
+  if (!currentAuthUser) return 'visitor';
+  if (currentAuthUser.role === 'admin' || currentAuthUser.email === 'odecivansousa@gmail.com') return 'default';
+  return String(currentAuthUser.id || 'client');
+}
+
+function getUserStorageKey(baseKey) {
+  const uid = getActiveUserId();
+  if (uid === 'default') return baseKey;
+  return `${baseKey}_${uid}`;
+}
+
 const HISTORY_KEY = 'mossoro_ofertas_history_v2';
 const WHATSAPP_KEY = 'mossoro_whatsapp_group_v2';
 const THEME_KEY = 'mossoro_theme_v2';
@@ -340,7 +354,8 @@ function updateDailyBadge() {
 
 function loadHistory() {
   try {
-    const raw = localStorage.getItem(HISTORY_KEY);
+    const key = getUserStorageKey(HISTORY_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -364,7 +379,8 @@ function saveToHistory(item) {
       timestamp: Date.now()
     });
     if (history.length > 15) history = history.slice(0, 15);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    const key = getUserStorageKey(HISTORY_KEY);
+    localStorage.setItem(key, JSON.stringify(history));
     renderHistory();
   } catch (e) {
     console.warn('Erro ao salvar histórico', e);
@@ -409,7 +425,8 @@ function renderHistory() {
 
 clearHistoryButton.addEventListener('click', () => {
   if (confirm('Deseja limpar o histórico das últimas ofertas?')) {
-    localStorage.removeItem(HISTORY_KEY);
+    const key = getUserStorageKey(HISTORY_KEY);
+    localStorage.removeItem(key);
     renderHistory();
     showToast('Histórico limpo.');
   }
@@ -686,7 +703,8 @@ async function postJson(url, data) {
 
 async function refreshTelegramStatus() {
   try {
-    const response = await fetch(apiUrl('/api/telegram/status'), { cache: 'no-store' });
+    const uid = getActiveUserId();
+    const response = await fetch(apiUrl(`/api/telegram/status?userId=${encodeURIComponent(uid)}`), { cache: 'no-store' });
     const result = await response.json();
     const desc = $('#telegram-status-desc');
     const badge = $('#telegram-status-badge');
@@ -740,6 +758,7 @@ $('#telegram-save').addEventListener('click', async () => {
   button.disabled = true;
   try {
     const result = await postJson('/api/telegram/config', {
+      userId: getActiveUserId(),
       token: $('#telegram-token').value.trim(),
       chatId: $('#telegram-chat').value || $('#telegram-chat-manual').value.trim(),
     });
@@ -758,7 +777,7 @@ $('#telegram-save').addEventListener('click', async () => {
 $('#telegram-disconnect').addEventListener('click', async () => {
   if (!confirm('Deseja realmente desconectar o bot do Telegram?')) return;
   try {
-    await postJson('/api/telegram/disconnect', {});
+    await postJson('/api/telegram/disconnect', { userId: getActiveUserId() });
     showToast('Telegram desconectado.');
     await refreshTelegramStatus();
   } catch (error) {
@@ -776,6 +795,7 @@ $('#telegram-send-button').addEventListener('click', async () => {
 
   try {
     const result = await postJson('/api/telegram/send', {
+      userId: getActiveUserId(),
       title: currentTitle(),
       price: parseCurrencyInput(priceInput),
       originalPrice: parseCurrencyInput(originalPriceInput),
@@ -989,10 +1009,17 @@ whatsappQuickButton?.addEventListener('click', async () => {
       if (navigator.clipboard && window.ClipboardItem && blob) {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       }
-      const targetGroup = localStorage.getItem(WHATSAPP_KEY) || DEFAULT_WHATSAPP_GROUP;
-      window.open(targetGroup, '_blank');
-      $('#share-status').textContent = 'Foto copiada! No WhatsApp, aperte Ctrl + V para colar a foto.';
-      showToast('📸 Foto copiada! Aperte Ctrl + V no grupo para colar a imagem com a arte.');
+      const key = getUserStorageKey(WHATSAPP_KEY);
+      const targetGroup = localStorage.getItem(key) || (getActiveUserId() === 'default' ? DEFAULT_WHATSAPP_GROUP : '');
+      if (targetGroup) {
+        window.open(targetGroup, '_blank');
+        $('#share-status').textContent = 'Foto copiada! No WhatsApp, aperte Ctrl + V para colar a foto.';
+        showToast('📸 Foto copiada! Aperte Ctrl + V no grupo para colar a imagem com a arte.');
+      } else {
+        showToast('⚠️ Configure o link do seu grupo do WhatsApp na aba "WhatsApp & Canais" primeiro!', true);
+        const section = $('#whatsapp-section');
+        if (section) section.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   } catch (err) {
     $('#share-status').textContent = err.message || 'Falha ao enviar para o WhatsApp.';
@@ -1004,23 +1031,51 @@ whatsappQuickButton?.addEventListener('click', async () => {
 });
 
 function applyGroupLink(link) {
-  if (!link) return;
   const topbarLink = $('#topbar-wpp-link');
   const btnOpen = $('#btn-open-group-link');
-  if (topbarLink) topbarLink.href = link;
-  if (btnOpen) btnOpen.href = link;
-  if (whatsappGroupInput) whatsappGroupInput.value = link;
+  const linkedName = $('#linked-group-name');
+  const clean = String(link || '').trim();
+
+  if (topbarLink) {
+    topbarLink.href = clean || '#whatsapp-section';
+    if (!clean) topbarLink.removeAttribute('target');
+    else topbarLink.setAttribute('target', '_blank');
+  }
+  if (btnOpen) {
+    btnOpen.href = clean || '#whatsapp-section';
+    if (!clean) btnOpen.removeAttribute('target');
+    else btnOpen.setAttribute('target', '_blank');
+  }
+  if (linkedName) {
+    linkedName.textContent = clean ? 'Grupo Vinculado' : 'Não configurado';
+  }
+  if (whatsappGroupInput && document.activeElement !== whatsappGroupInput) {
+    whatsappGroupInput.value = clean;
+  }
 }
 
 // Salvar Link Oficial do Grupo
 saveWhatsappBtn?.addEventListener('click', async () => {
-  const link = (whatsappGroupInput?.value || '').trim() || DEFAULT_WHATSAPP_GROUP;
-  localStorage.setItem(WHATSAPP_KEY, link);
+  const uid = getActiveUserId();
+  const link = (whatsappGroupInput?.value || '').trim();
+  const key = getUserStorageKey(WHATSAPP_KEY);
+  if (link) {
+    localStorage.setItem(key, link);
+  } else {
+    localStorage.removeItem(key);
+  }
   applyGroupLink(link);
-  showToast('✅ Link do grupo salvo com sucesso!');
-  try {
-    await postJson('/api/queue/config', { whatsappGroupLink: link });
-  } catch {}
+  showToast(link ? '✅ Link do grupo salvo com sucesso!' : 'Link removido.');
+
+  if (uid !== 'visitor' && uid !== 'default') {
+    try {
+      await postJson('/api/settings', { userId: uid, whatsappGroupLink: link });
+    } catch {}
+  } else if (uid === 'default') {
+    try {
+      await postJson('/api/queue/config', { whatsappGroupLink: link });
+    } catch {}
+  }
 });
 
 // Navegação suave da Sidebar para Seções
@@ -1492,7 +1547,8 @@ function escapeHtml(text) {
 
 async function refreshQueueStatus() {
   try {
-    const res = await fetch(apiUrl('/api/queue/status'), { cache: 'no-store' });
+    const uid = getActiveUserId();
+    const res = await fetch(apiUrl(`/api/queue/status?userId=${encodeURIComponent(uid)}`), { cache: 'no-store' });
     const data = await res.json();
     if (!data.ok) return;
     queueStateCache = data;
@@ -1602,7 +1658,7 @@ function renderQueueUI(status) {
           e.stopPropagation();
           const id = btn.getAttribute('data-del-id');
           try {
-            await postJson('/api/queue/remove', { id });
+            await postJson('/api/queue/remove', { id, userId: getActiveUserId() });
             showToast('Item removido da fila.');
             await refreshQueueStatus();
           } catch (err) {
@@ -1710,7 +1766,7 @@ addToQueueBtn?.addEventListener('click', async () => {
       theme: currentArtTheme
     };
 
-    const res = await postJson('/api/queue/add', offerPayload);
+    const res = await postJson('/api/queue/add', { ...offerPayload, userId: getActiveUserId() });
     if (!res.ok) throw new Error(res.error || 'Falha ao adicionar à fila.');
 
     showToast(`✅ Oferta adicionada ao Piloto Automático! (${res.queueCount} na fila)`);
@@ -1731,7 +1787,7 @@ startPilotoBtn?.addEventListener('click', async () => {
   if (!checkAuthAccess()) return;
   startPilotoBtn.disabled = true;
   try {
-    const res = await postJson('/api/queue/start', { triggerImmediately: true });
+    const res = await postJson('/api/queue/start', { triggerImmediately: true, userId: getActiveUserId() });
     if (!res.ok) throw new Error(res.error || 'Falha ao iniciar.');
     showToast('▶️ Piloto Automático iniciado! Disparando a 1ª oferta...');
     await refreshQueueStatus();
@@ -1746,7 +1802,7 @@ startPilotoBtn?.addEventListener('click', async () => {
 pausePilotoBtn?.addEventListener('click', async () => {
   pausePilotoBtn.disabled = true;
   try {
-    const res = await postJson('/api/queue/pause', {});
+    const res = await postJson('/api/queue/pause', { userId: getActiveUserId() });
     showToast('⏸️ Piloto Automático pausado.');
     await refreshQueueStatus();
   } catch (err) {
@@ -1761,7 +1817,7 @@ clearPilotoBtn?.addEventListener('click', async () => {
   if (!confirm('Deseja realmente limpar todas as ofertas que estão na fila?')) return;
   clearPilotoBtn.disabled = true;
   try {
-    await postJson('/api/queue/clear', {});
+    await postJson('/api/queue/clear', { userId: getActiveUserId() });
     showToast('🗑️ Fila limpa com sucesso.');
     await refreshQueueStatus();
   } catch (err) {
@@ -1775,7 +1831,7 @@ clearPilotoBtn?.addEventListener('click', async () => {
 queueIntervalSelect?.addEventListener('change', async () => {
   const intervalMinutes = Number(queueIntervalSelect.value);
   try {
-    await postJson('/api/queue/config', { intervalMinutes });
+    await postJson('/api/queue/config', { intervalMinutes, userId: getActiveUserId() });
     showToast(`⏱️ Intervalo atualizado para ${intervalMinutes} minutos.`);
     await refreshQueueStatus();
   } catch (err) {
@@ -1786,7 +1842,7 @@ queueIntervalSelect?.addEventListener('change', async () => {
 queueStartTime?.addEventListener('change', async () => {
   const startTime = queueStartTime.value;
   try {
-    await postJson('/api/queue/config', { startTime });
+    await postJson('/api/queue/config', { startTime, userId: getActiveUserId() });
     showToast(`⏰ Início dos disparos definido para às ${startTime}.`);
     await refreshQueueStatus();
   } catch (err) {
@@ -1797,7 +1853,7 @@ queueStartTime?.addEventListener('change', async () => {
 queueEndTime?.addEventListener('change', async () => {
   const endTime = queueEndTime.value;
   try {
-    await postJson('/api/queue/config', { endTime });
+    await postJson('/api/queue/config', { endTime, userId: getActiveUserId() });
     showToast(`⏰ Término dos disparos definido para às ${endTime}.`);
     await refreshQueueStatus();
   } catch (err) {
@@ -1807,14 +1863,14 @@ queueEndTime?.addEventListener('change', async () => {
 
 queueCheckWhatsApp?.addEventListener('change', async () => {
   try {
-    await postJson('/api/queue/config', { sendWhatsApp: queueCheckWhatsApp.checked });
+    await postJson('/api/queue/config', { sendWhatsApp: queueCheckWhatsApp.checked, userId: getActiveUserId() });
     await refreshQueueStatus();
   } catch (err) {}
 });
 
 queueCheckTelegram?.addEventListener('change', async () => {
   try {
-    await postJson('/api/queue/config', { sendTelegram: queueCheckTelegram.checked });
+    await postJson('/api/queue/config', { sendTelegram: queueCheckTelegram.checked, userId: getActiveUserId() });
     await refreshQueueStatus();
   } catch (err) {}
 });
@@ -1847,6 +1903,7 @@ bulkImportBtn?.addEventListener('click', async () => {
       if (data.ok && data.product) {
         const p = data.product;
         await postJson('/api/queue/add', {
+          userId: getActiveUserId(),
           title: p.title || 'Oferta imperdível',
           price: p.price,
           originalPrice: p.originalPrice,
@@ -1897,10 +1954,37 @@ $$('.nav-list a').forEach(link => {
 });
 
 // Inicialização do WhatsApp
-function initWhatsApp() {
-  const savedGroupLink = localStorage.getItem(WHATSAPP_KEY) || DEFAULT_WHATSAPP_GROUP;
-  applyGroupLink(savedGroupLink);
-  refreshWhatsAppStatus();
+async function initWhatsApp() {
+  const uid = getActiveUserId();
+  const key = getUserStorageKey(WHATSAPP_KEY);
+  let link = localStorage.getItem(key);
+
+  if (!link && uid === 'default') {
+    link = DEFAULT_WHATSAPP_GROUP;
+    localStorage.setItem(key, link);
+  } else if (!link && uid !== 'visitor') {
+    try {
+      const res = await fetch(apiUrl(`/api/settings?userId=${encodeURIComponent(uid)}`));
+      const data = await res.json();
+      if (data.ok && data.settings?.whatsapp_group_link) {
+        link = data.settings.whatsapp_group_link;
+        localStorage.setItem(key, link);
+      }
+    } catch (e) {}
+  }
+
+  applyGroupLink(link || '');
+
+  // O robô Baileys por QR Code do servidor fica visível apenas para o Administrador Master
+  const isClient = currentAuthUser && currentAuthUser.role !== 'admin';
+  const serverBotBox = $('#whatsapp-bot-server-box');
+  if (serverBotBox) {
+    serverBotBox.style.display = isClient ? 'none' : 'block';
+  }
+
+  if (uid === 'default') {
+    refreshWhatsAppStatus();
+  }
 }
 
 // ==========================================
@@ -1908,7 +1992,6 @@ function initWhatsApp() {
 // ==========================================
 
 const USER_SESSION_KEY = 'disparalink_user_v3';
-let currentAuthUser = null;
 
 // Elementos Auth & Topbar
 const btnLoginOpen = $('#btn-login-open');
@@ -1975,6 +2058,15 @@ function checkAuthAccess() {
   return true;
 }
 
+async function refreshUserWorkspace() {
+  await Promise.allSettled([
+    initWhatsApp(),
+    refreshTelegramStatus(),
+    refreshQueueStatus(),
+    renderHistory()
+  ]);
+}
+
 function loadSession() {
   try {
     const saved = localStorage.getItem(USER_SESSION_KEY);
@@ -1993,6 +2085,7 @@ function saveSession(user) {
   currentAuthUser = user;
   localStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
   updateAuthUI();
+  refreshUserWorkspace();
 }
 
 function clearSession() {
@@ -2003,6 +2096,7 @@ function clearSession() {
     expiredModal.style.display = 'none';
   }
   updateAuthUI();
+  refreshUserWorkspace();
 }
 
 function updateAuthUI() {
@@ -2405,8 +2499,5 @@ if (window.location.protocol === 'file:') {
 }
 loadSession();
 initTheme();
-initWhatsApp();
 updateDailyBadge();
-refreshTelegramStatus();
-renderHistory();
-refreshQueueStatus();
+refreshUserWorkspace();

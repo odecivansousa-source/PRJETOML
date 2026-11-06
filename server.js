@@ -720,6 +720,15 @@ async function imageProxy(raw) {
   return { type, bytes: Buffer.from(await response.arrayBuffer()) };
 }
 
+function getRequestUserId(requestUrl, body = {}) {
+  const queryUserId = requestUrl?.searchParams ? requestUrl.searchParams.get('userId') : null;
+  const bodyUserId = body && body.userId ? body.userId : null;
+  const raw = String(bodyUserId || queryUserId || '').trim();
+  if (!raw || raw === 'visitor') return 'visitor';
+  if (raw === 'default' || raw === 'admin' || raw === '00000000-0000-0000-0000-000000000001') return 'default';
+  return raw;
+}
+
 const server = http.createServer(async (request, response) => {
   if (request.method === 'OPTIONS') {
     response.writeHead(204, {
@@ -734,13 +743,37 @@ const server = http.createServer(async (request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
 
   if (requestUrl.pathname === '/api/telegram/status' && request.method === 'GET') {
-    const config = readTelegramConfig();
-    sendJson(response, 200, {
-      ok: true,
-      configured: Boolean(config?.token && config?.chatId),
-      chatTitle: config?.chatTitle || '',
-      botName: config?.botName || ''
-    });
+    const targetUserId = getRequestUserId(requestUrl);
+    if (targetUserId === 'visitor') {
+      sendJson(response, 200, { ok: true, configured: false, chatTitle: '', botName: '' });
+      return;
+    }
+    if (targetUserId === 'default') {
+      const config = readTelegramConfig();
+      sendJson(response, 200, {
+        ok: true,
+        configured: Boolean(config?.token && config?.chatId),
+        chatTitle: config?.chatTitle || '',
+        botName: config?.botName || ''
+      });
+      return;
+    }
+    if (db) {
+      try {
+        const s = await db.fetchSettings(targetUserId);
+        const configured = Boolean(s?.telegram_token && s?.telegram_chat_id);
+        sendJson(response, 200, {
+          ok: true,
+          configured,
+          chatTitle: s?.telegram_chat_title || (configured ? 'Grupo Telegram Conectado' : ''),
+          botName: ''
+        });
+        return;
+      } catch (e) {
+        console.warn('Erro ao carregar status do Telegram do cliente:', e.message);
+      }
+    }
+    sendJson(response, 200, { ok: true, configured: false, chatTitle: '', botName: '' });
     return;
   }
 
@@ -750,7 +783,18 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     try {
-      if (fs.existsSync(TELEGRAM_CONFIG)) fs.unlinkSync(TELEGRAM_CONFIG);
+      const body = await readJsonBody(request).catch(() => ({}));
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'default') {
+        if (fs.existsSync(TELEGRAM_CONFIG)) fs.unlinkSync(TELEGRAM_CONFIG);
+      } else if (db) {
+        await db.updateSettings({
+          telegramToken: '',
+          telegramChatId: '',
+          telegramChatTitle: '',
+          sendTelegram: false
+        }, targetUserId);
+      }
       sendJson(response, 200, { ok: true, message: 'Telegram desconectado.' });
     } catch (error) {
       sendJson(response, 500, { ok: false, error: error.message });
@@ -791,17 +835,30 @@ const server = http.createServer(async (request, response) => {
     }
     try {
       const body = await readJsonBody(request);
+      const targetUserId = getRequestUserId(requestUrl, body);
       const token = String(body.token || '').trim();
       const chatId = String(body.chatId || '').trim();
       if (!/^\d+:[A-Za-z0-9_-]{20,}$/.test(token)) throw new Error('Confira o token do bot enviado pelo @BotFather.');
       if (!chatId || chatId.length > 100) throw new Error('Informe o @ do grupo público ou o ID do grupo.');
       const bot = await telegramCall(token, 'getMe', {});
       const chat = await telegramCall(token, 'getChat', { chat_id: chatId });
-      const config = { token, chatId, chatTitle: chat.title || chat.username || chatId, botName: bot.username || '' };
-      const temporaryPath = `${TELEGRAM_CONFIG}.tmp`;
-      fs.writeFileSync(temporaryPath, JSON.stringify(config), { mode: 0o600 });
-      fs.renameSync(temporaryPath, TELEGRAM_CONFIG);
-      sendJson(response, 200, { ok: true, configured: true, chatTitle: config.chatTitle, botName: config.botName });
+      const chatTitle = chat.title || chat.username || chatId;
+      const botName = bot.username || '';
+
+      if (targetUserId === 'default') {
+        const config = { token, chatId, chatTitle, botName };
+        const temporaryPath = `${TELEGRAM_CONFIG}.tmp`;
+        fs.writeFileSync(temporaryPath, JSON.stringify(config), { mode: 0o600 });
+        fs.renameSync(temporaryPath, TELEGRAM_CONFIG);
+      } else if (db) {
+        await db.updateSettings({
+          telegramToken: token,
+          telegramChatId: chatId,
+          telegramChatTitle: chatTitle,
+          sendTelegram: true
+        }, targetUserId);
+      }
+      sendJson(response, 200, { ok: true, configured: true, chatTitle, botName });
     } catch (error) {
       sendJson(response, 400, { ok: false, error: error.message || 'Não foi possível configurar o Telegram.' });
     }
@@ -814,9 +871,24 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     try {
-      const config = readTelegramConfig();
-      if (!config?.token || !config?.chatId) throw new Error('Configure o bot e o grupo do Telegram antes de publicar.');
       const body = await readJsonBody(request);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      let config = null;
+
+      if (targetUserId === 'default') {
+        config = readTelegramConfig();
+      } else if (db) {
+        const s = await db.fetchSettings(targetUserId);
+        if (s?.telegram_token && s?.telegram_chat_id) {
+          config = {
+            token: s.telegram_token,
+            chatId: s.telegram_chat_id,
+            chatTitle: s.telegram_chat_title || 'Grupo Telegram'
+          };
+        }
+      }
+
+      if (!config?.token || !config?.chatId) throw new Error('Configure o bot e o grupo do Telegram antes de publicar.');
       const affiliateUrl = safeUrl(String(body.affiliateUrl || ''), [...REDIRECT_HOSTS]).toString();
       const caption = buildTelegramCaption({ ...body, affiliateUrl });
       if (caption.length > 4096) throw new Error('O link e o texto passaram do limite de mensagem do Telegram.');
@@ -875,6 +947,45 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, { ok: true, message: `Oferta enviada para ${config.chatTitle}!` });
     } catch (error) {
       sendJson(response, 400, { ok: false, error: error.message || 'Não foi possível publicar no Telegram.' });
+    }
+    return;
+  }
+
+  // ==========================================
+  // CONFIGURAÇÕES DO USUÁRIO (SAAS)
+  // ==========================================
+  if (requestUrl.pathname === '/api/settings' && request.method === 'GET') {
+    const targetUserId = getRequestUserId(requestUrl);
+    if (!db || targetUserId === 'visitor') {
+      sendJson(response, 200, { ok: true, settings: null });
+      return;
+    }
+    try {
+      const s = await db.fetchSettings(targetUserId);
+      sendJson(response, 200, { ok: true, settings: s });
+    } catch (err) {
+      sendJson(response, 500, { ok: false, error: err.message });
+    }
+    return;
+  }
+
+  if (requestUrl.pathname === '/api/settings' && request.method === 'POST') {
+    if (!checkLocalOrigin(request)) {
+      sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+      return;
+    }
+    try {
+      const body = await readJsonBody(request);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'visitor') {
+        throw new Error('Usuário não autenticado.');
+      }
+      if (db) {
+        await db.updateSettings(body, targetUserId);
+      }
+      sendJson(response, 200, { ok: true, message: 'Configurações salvas.' });
+    } catch (err) {
+      sendJson(response, 400, { ok: false, error: err.message });
     }
     return;
   }
@@ -1043,66 +1154,196 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  // ROTAS DO PILOTO AUTOMÁTICO (FILA DE DISPARO)
+  // ROTAS DO PILOTO AUTOMÁTICO (FILA DE DISPARO MULTI-TENANT)
   if (requestUrl.pathname === '/api/queue/status' && request.method === 'GET') {
-    if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto automático não disponível.' });
-    return sendJson(response, 200, scheduler.getStatus());
+    const targetUserId = getRequestUserId(requestUrl);
+    if (targetUserId === 'visitor') {
+      return sendJson(response, 200, {
+        ok: true,
+        isRunning: false,
+        items: [],
+        total: 0,
+        queueCount: 0,
+        intervalMinutes: 5,
+        startTime: '08:00',
+        endTime: '22:00',
+        sendWhatsapp: false,
+        sendTelegram: false,
+        nextRunInMinutes: null
+      });
+    }
+
+    if (targetUserId === 'default') {
+      if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto automático não disponível.' });
+      return sendJson(response, 200, scheduler.getStatus());
+    }
+
+    // Cliente isolado
+    try {
+      const items = db ? await db.fetchQueue(targetUserId) : [];
+      const settings = db ? await db.fetchSettings(targetUserId) : null;
+      return sendJson(response, 200, {
+        ok: true,
+        userId: targetUserId,
+        items: items || [],
+        total: items ? items.length : 0,
+        queueCount: items ? items.length : 0,
+        isRunning: settings?.is_running ?? false,
+        intervalMinutes: settings?.interval_minutes || 5,
+        startTime: settings?.start_time || '08:00',
+        endTime: settings?.end_time || '22:00',
+        sendWhatsapp: settings?.send_whatsapp ?? true,
+        sendTelegram: settings?.send_telegram ?? false,
+        nextRunInMinutes: null
+      });
+    } catch (err) {
+      return sendJson(response, 500, { ok: false, error: err.message });
+    }
   }
 
   if (requestUrl.pathname === '/api/queue/add' && request.method === 'POST') {
-    if (!checkLocalOrigin(request) || !scheduler) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
     try {
       const body = await readJsonBody(request);
-      const res = await scheduler.addItem(body);
-      return sendJson(response, 200, res);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'visitor') throw new Error('Acesso exclusivo para assinantes. Faça login para usar o piloto.');
+
+      if (targetUserId === 'default') {
+        if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto não disponível.' });
+        const res = await scheduler.addItem(body);
+        return sendJson(response, 200, res);
+      }
+
+      // Cliente isolado
+      const newItem = {
+        id: body.id || 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        title: body.title,
+        price: body.price,
+        originalPrice: body.originalPrice,
+        discount: body.discount,
+        affiliateLink: body.affiliateLink,
+        directLink: body.directLink,
+        imageUrl: body.imageUrl,
+        platform: body.platform,
+        theme: body.theme || 'purple',
+        createdAt: Date.now()
+      };
+      if (db) {
+        await db.addQueueItem(newItem, targetUserId);
+      }
+      const clientItems = db ? await db.fetchQueue(targetUserId) : [newItem];
+      return sendJson(response, 200, { ok: true, item: newItem, queueCount: clientItems.length });
     } catch (err) {
       return sendJson(response, 400, { ok: false, error: err.message });
     }
   }
 
   if (requestUrl.pathname === '/api/queue/remove' && request.method === 'POST') {
-    if (!checkLocalOrigin(request) || !scheduler) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
     try {
       const body = await readJsonBody(request);
-      const res = await scheduler.removeItem(body.id);
-      return sendJson(response, 200, res);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'default') {
+        if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto não disponível.' });
+        const res = await scheduler.removeItem(body.id);
+        return sendJson(response, 200, res);
+      }
+
+      if (db) {
+        await db.removeQueueItem(body.id, targetUserId);
+      }
+      const clientItems = db ? await db.fetchQueue(targetUserId) : [];
+      return sendJson(response, 200, { ok: true, queueCount: clientItems.length });
     } catch (err) {
       return sendJson(response, 400, { ok: false, error: err.message });
     }
   }
 
   if (requestUrl.pathname === '/api/queue/clear' && request.method === 'POST') {
-    if (!checkLocalOrigin(request) || !scheduler) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
-    const res = await scheduler.clearQueue();
-    return sendJson(response, 200, res);
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    try {
+      const body = await readJsonBody(request).catch(() => ({}));
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'default') {
+        if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto não disponível.' });
+        const res = await scheduler.clearQueue();
+        return sendJson(response, 200, res);
+      }
+
+      if (db) {
+        await db.clearQueueItems(targetUserId);
+      }
+      return sendJson(response, 200, { ok: true, cleared: true, queueCount: 0 });
+    } catch (err) {
+      return sendJson(response, 400, { ok: false, error: err.message });
+    }
   }
 
   if (requestUrl.pathname === '/api/queue/config' && request.method === 'POST') {
-    if (!checkLocalOrigin(request) || !scheduler) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
     try {
       const body = await readJsonBody(request);
-      const res = await scheduler.updateConfig(body);
-      return sendJson(response, 200, res);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'default') {
+        if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto não disponível.' });
+        const res = await scheduler.updateConfig(body);
+        return sendJson(response, 200, res);
+      }
+
+      if (db) {
+        await db.updateSettings({
+          intervalMinutes: body.intervalMinutes,
+          startTime: body.startTime,
+          endTime: body.endTime,
+          sendWhatsApp: body.sendWhatsApp,
+          sendTelegram: body.sendTelegram,
+          isRunning: body.isRunning
+        }, targetUserId);
+      }
+      return sendJson(response, 200, { ok: true });
     } catch (err) {
       return sendJson(response, 400, { ok: false, error: err.message });
     }
   }
 
   if (requestUrl.pathname === '/api/queue/start' && request.method === 'POST') {
-    if (!checkLocalOrigin(request) || !scheduler) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
     try {
       const body = await readJsonBody(request).catch(() => ({}));
-      const res = scheduler.startQueue(body.triggerImmediately ?? true);
-      return sendJson(response, 200, res);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'default') {
+        if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto não disponível.' });
+        const res = scheduler.startQueue(body.triggerImmediately ?? true);
+        return sendJson(response, 200, res);
+      }
+
+      if (db) {
+        await db.updateSettings({ isRunning: true }, targetUserId);
+      }
+      return sendJson(response, 200, { ok: true, isRunning: true, message: 'Piloto Automático ativado para sua conta.' });
     } catch (err) {
       return sendJson(response, 400, { ok: false, error: err.message });
     }
   }
 
   if (requestUrl.pathname === '/api/queue/pause' && request.method === 'POST') {
-    if (!checkLocalOrigin(request) || !scheduler) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
-    const res = scheduler.pauseQueue();
-    return sendJson(response, 200, res);
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    try {
+      const body = await readJsonBody(request).catch(() => ({}));
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'default') {
+        if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto não disponível.' });
+        const res = scheduler.pauseQueue();
+        return sendJson(response, 200, res);
+      }
+
+      if (db) {
+        await db.updateSettings({ isRunning: false }, targetUserId);
+      }
+      return sendJson(response, 200, { ok: true, isRunning: false, message: 'Piloto Automático pausado.' });
+    } catch (err) {
+      return sendJson(response, 400, { ok: false, error: err.message });
+    }
   }
 
   if (requestUrl.pathname === '/api/preview' && request.method === 'GET') {
