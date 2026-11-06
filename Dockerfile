@@ -1,5 +1,5 @@
 # Imagem oficial Node.js LTS
-FROM node:20-slim
+FROM node:22-slim
 
 # Instala dependências do sistema para sharp e canvas se necessário
 RUN apt-get update && apt-get install -y --no-install-recommends \

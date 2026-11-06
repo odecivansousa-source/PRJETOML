@@ -1,5 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// Configura WebSocket para ambientes Node.js (necessário para @supabase/supabase-js)
+let wsTransport;
+try {
+  wsTransport = typeof globalThis.WebSocket !== 'undefined' ? globalThis.WebSocket : require('ws');
+  if (typeof globalThis.WebSocket === 'undefined' && wsTransport) {
+    globalThis.WebSocket = wsTransport;
+  }
+} catch (e) {
+  // Ignora se ws não estiver disponível
+}
+
 function getValidUrl(url, fallback) {
   if (typeof url === 'string') {
     const trimmed = url.trim();
@@ -32,9 +43,14 @@ let lastInitError = null;
 function getSupabase() {
   if (supabase) return supabase;
   try {
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    const options = {
       auth: { persistSession: false }
-    });
+    };
+    if (wsTransport) {
+      options.realtime = { transport: wsTransport };
+    }
+
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, options);
     console.log('[Supabase] Cliente inicializado com sucesso para:', SUPABASE_URL);
     return supabase;
   } catch (err) {
