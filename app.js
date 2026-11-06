@@ -1882,6 +1882,20 @@ linkInput.addEventListener('paste', () => {
   setTimeout(() => { errorBox.hidden = true; }, 0);
 });
 
+// Bloqueio de cliques no menu para visitantes
+$$('.nav-list a').forEach(link => {
+  link.addEventListener('click', (e) => {
+    const href = link.getAttribute('href');
+    if (href && href !== '#como-funciona' && href !== '#inicio') {
+      if (!currentAuthUser) {
+        e.preventDefault();
+        openLoginModal();
+        showToast('🔐 Faça login ou assine por R$ 30 para usar esta ferramenta.', true);
+      }
+    }
+  });
+});
+
 // Inicialização do WhatsApp
 function initWhatsApp() {
   const savedGroupLink = localStorage.getItem(WHATSAPP_KEY) || DEFAULT_WHATSAPP_GROUP;
@@ -1928,6 +1942,7 @@ const newUserErrorBox = $('#new-user-error-box');
 const expiredModal = $('#expired-modal');
 const btnExpiredLogout = $('#btn-expired-logout');
 const apresentacaoSection = $('#apresentacao-section');
+const appToolsContainer = $('#app-tools-container');
 
 // Elementos Admin
 const metricTotalUsers = $('#metric-total-users');
@@ -1989,6 +2004,7 @@ function updateAuthUI() {
     if (btnLoginOpen) btnLoginOpen.hidden = true;
     if (userLoggedInfo) userLoggedInfo.hidden = false;
     if (apresentacaoSection) apresentacaoSection.hidden = true;
+    if (appToolsContainer) appToolsContainer.hidden = false;
 
     const isAdmin = currentAuthUser.role === 'admin';
     if (userNameText) userNameText.textContent = currentAuthUser.name?.split(' ')[0] || 'Usuário';
@@ -2043,6 +2059,7 @@ function updateAuthUI() {
     if (navAdminLink) navAdminLink.hidden = true;
     if (adminSection) adminSection.hidden = true;
     if (apresentacaoSection) apresentacaoSection.hidden = false;
+    if (appToolsContainer) appToolsContainer.hidden = true;
     if (expiredModal) {
       expiredModal.hidden = true;
       expiredModal.style.display = 'none';
@@ -2329,6 +2346,20 @@ newUserForm?.addEventListener('submit', async (e) => {
     btn.disabled = false;
     btn.innerHTML = '<span>✅</span> Salvar e Liberar Acesso';
   }
+});
+
+// Bloqueio de cliques no menu para visitantes
+$$('.nav-list a').forEach(link => {
+  link.addEventListener('click', (e) => {
+    const href = link.getAttribute('href');
+    if (href && href !== '#como-funciona' && href !== '#inicio') {
+      if (!currentAuthUser) {
+        e.preventDefault();
+        openLoginModal();
+        showToast('🔐 Faça login ou assine por R$ 30 para usar esta ferramenta.', true);
+      }
+    }
+  });
 });
 
 // Inicialização
