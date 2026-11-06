@@ -234,12 +234,18 @@ async function startWhatsApp(forceNew = false) {
           console.log('[WhatsApp] Sessão deslogada.');
         } else {
           // Reconnect automático (especialmente para código 515 restartRequired no pareamento de QR Code)
-          console.log('[WhatsApp] Reconectando para finalizar autenticação...');
+          console.log(`[WhatsApp] Reconectando (código ${statusCode}) para finalizar autenticação...`);
+          connectionStatus = 'connecting';
+          isConnecting = false;
+          if (sock) {
+            try { sock.ev.removeAllListeners(); sock.end(); } catch {}
+            sock = null;
+          }
           setTimeout(() => {
             if (connectionStatus !== 'connected') {
               startWhatsApp(false).catch(e => console.warn('[WhatsApp] Erro ao reconectar:', e.message));
             }
-          }, statusCode === 515 ? 800 : 2500);
+          }, statusCode === 515 ? 400 : 2000);
         }
       }
     });
