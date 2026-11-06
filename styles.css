@@ -2915,6 +2915,11 @@ body.dark-mode .whatsapp-qr-box {
   padding: 20px;
 }
 
+.custom-modal-backdrop[hidden],
+[hidden] {
+  display: none !important;
+}
+
 .custom-modal-card {
   background: var(--paper);
   border: 1px solid var(--line);

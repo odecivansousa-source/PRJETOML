@@ -1961,6 +1961,10 @@ function saveSession(user) {
 function clearSession() {
   currentAuthUser = null;
   localStorage.removeItem(USER_SESSION_KEY);
+  if (expiredModal) {
+    expiredModal.hidden = true;
+    expiredModal.style.display = 'none';
+  }
   updateAuthUI();
 }
 
@@ -2006,15 +2010,25 @@ function updateAuthUI() {
 
     // Paywall para clientes vencidos
     if (currentAuthUser.isExpired && !isAdmin) {
-      if (expiredModal) expiredModal.hidden = false;
+      if (expiredModal) {
+        expiredModal.hidden = false;
+        expiredModal.style.display = 'flex';
+      }
     } else {
-      if (expiredModal) expiredModal.hidden = true;
+      if (expiredModal) {
+        expiredModal.hidden = true;
+        expiredModal.style.display = 'none';
+      }
     }
   } else {
     if (btnLoginOpen) btnLoginOpen.hidden = false;
     if (userLoggedInfo) userLoggedInfo.hidden = true;
     if (navAdminLink) navAdminLink.hidden = true;
     if (adminSection) adminSection.hidden = true;
+    if (expiredModal) {
+      expiredModal.hidden = true;
+      expiredModal.style.display = 'none';
+    }
 
     if (sideUserName) sideUserName.textContent = 'DISPARALINK74';
     if (sideUserAvatar) sideUserAvatar.textContent = 'D';
