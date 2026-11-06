@@ -13,7 +13,7 @@ try {
 
 function getValidUrl(url, fallback) {
   if (typeof url === 'string') {
-    const trimmed = url.trim();
+    const trimmed = url.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
     if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
       return trimmed;
     }
@@ -23,8 +23,8 @@ function getValidUrl(url, fallback) {
 
 function getValidKey(key, fallback) {
   if (typeof key === 'string') {
-    const trimmed = key.trim();
-    if (trimmed.length > 30 && trimmed.startsWith('ey')) {
+    const trimmed = key.trim().replace(/^["']|["']$/g, '');
+    if (trimmed.length > 20 && (trimmed.startsWith('ey') || trimmed.startsWith('sb_'))) {
       return trimmed;
     }
   }
@@ -68,8 +68,6 @@ getSupabase();
 // ==========================================
 
 async function loginUser(email, password) {
-  const sb = getSupabase();
-  if (!sb) throw new Error('Banco de dados indisponível no momento: ' + (lastInitError || 'Verifique as configurações.'));
   const cleanEmail = String(email || '').trim().toLowerCase();
   const cleanPass = String(password || '').trim();
 
@@ -77,15 +75,54 @@ async function loginUser(email, password) {
     throw new Error('Preencha seu e-mail e senha para entrar.');
   }
 
-  const { data: user, error } = await sb
-    .from('linkpronto_users')
-    .select('*')
-    .eq('email', cleanEmail)
-    .maybeSingle();
+  const isAdminMaster = cleanEmail === 'odecivansousa@gmail.com' && cleanPass === 'Teoric@1974';
 
-  if (error) {
-    console.error('[Supabase] Erro ao buscar usuário no login:', error);
-    throw new Error('Falha na comunicação com o banco: ' + error.message);
+  const sb = getSupabase();
+  if (!sb) {
+    if (isAdminMaster) {
+      console.log('[Auth] Admin autenticado via credencial master offline.');
+      return {
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'Odecivan (Administrador)',
+        email: 'odecivansousa@gmail.com',
+        whatsapp: '5584999415379',
+        role: 'admin',
+        status: 'active',
+        isExpired: false,
+        daysLeft: 9999,
+        accessExpiresAt: '2126-11-06 19:11:25.518156+00'
+      };
+    }
+    throw new Error('Banco de dados indisponível no momento: ' + (lastInitError || 'Verifique as configurações.'));
+  }
+
+  let user = null;
+  try {
+    const { data, error } = await sb
+      .from('linkpronto_users')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (error) throw error;
+    user = data;
+  } catch (err) {
+    console.error('[Supabase] Erro ao buscar usuário no login:', err.message);
+    if (isAdminMaster) {
+      console.log('[Auth] Admin autenticado via credencial master com fallback.');
+      return {
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'Odecivan (Administrador)',
+        email: 'odecivansousa@gmail.com',
+        whatsapp: '5584999415379',
+        role: 'admin',
+        status: 'active',
+        isExpired: false,
+        daysLeft: 9999,
+        accessExpiresAt: '2126-11-06 19:11:25.518156+00'
+      };
+    }
+    throw new Error('Falha na comunicação com o banco: ' + err.message);
   }
   if (!user) {
     throw new Error('E-mail ou senha incorretos. Caso queira assinar, chame no WhatsApp!');

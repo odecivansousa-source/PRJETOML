@@ -3,13 +3,14 @@ const fs = require('node:fs');
 const QRCode = require('qrcode');
 const pino = require('pino');
 
-let makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers;
+let makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestBaileysVersion;
 try {
   const baileys = require('@whiskeysockets/baileys');
   makeWASocket = baileys.default;
   useMultiFileAuthState = baileys.useMultiFileAuthState;
   DisconnectReason = baileys.DisconnectReason;
   Browsers = baileys.Browsers;
+  fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion;
 } catch (e) {
   console.warn('Baileys não carregado:', e.message);
 }
@@ -104,6 +105,11 @@ async function startWhatsApp(forceNew = false) {
   qrDataUrl = null;
 
   try {
+    // Se for novo QR, zera completamente a pasta de autenticação local
+    if (forceNew && fs.existsSync(AUTH_DIR)) {
+      try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
+    }
+
     if (!fs.existsSync(AUTH_DIR)) {
       fs.mkdirSync(AUTH_DIR, { recursive: true });
     }
@@ -127,15 +133,20 @@ async function startWhatsApp(forceNew = false) {
 
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
-    // Se foi pedido novo QR, garante que o estado local não fique preso como registrado
-    if (forceNew && state?.creds?.registered) {
-      state.creds.registered = false;
+    // Obtém versão mais recente compatível com o protocolo do WhatsApp Web
+    let waVersion = [2, 3000, 1043857760];
+    if (fetchLatestBaileysVersion) {
+      try {
+        const v = await fetchLatestBaileysVersion();
+        if (v && v.version) waVersion = v.version;
+      } catch (e) {}
     }
 
     sock = makeWASocket({
+      version: waVersion,
       auth: state,
       logger: pino({ level: 'silent' }),
-      browser: Browsers ? Browsers.windows('Desktop') : ['Mossoró Ofertas', 'Chrome', '1.0.0'],
+      browser: Browsers ? Browsers.ubuntu('Chrome') : ['Ubuntu', 'Chrome', '22.04.4'],
       syncFullHistory: false,
       generateHighQualityLinkPreview: false,
       connectTimeoutMs: 60000,
@@ -145,13 +156,13 @@ async function startWhatsApp(forceNew = false) {
     });
 
     sock.ev.on('creds.update', async () => {
-      saveCreds();
+      await saveCreds();
       try {
         const credsPath = path.join(AUTH_DIR, 'creds.json');
         if (fs.existsSync(credsPath)) {
           const db = require('./supabase');
           const data = fs.readFileSync(credsPath, 'utf8');
-          db.saveAuthCredential('creds.json', data);
+          await db.saveAuthCredential('creds.json', data);
         }
       } catch (e) {}
     });
@@ -206,9 +217,10 @@ async function startWhatsApp(forceNew = false) {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        console.log(`[WhatsApp] Conexão encerrada. Código: ${statusCode}`);
+        const isLoggedOut = statusCode === DisconnectReason?.loggedOut;
+        console.log(`[WhatsApp] Conexão encerrada. Código: ${statusCode}. Deslogado? ${isLoggedOut}`);
 
-        if (statusCode === DisconnectReason?.loggedOut) {
+        if (isLoggedOut) {
           connectionStatus = 'disconnected';
           connectedUser = null;
           currentQR = null;
@@ -221,12 +233,13 @@ async function startWhatsApp(forceNew = false) {
           } catch {}
           console.log('[WhatsApp] Sessão deslogada.');
         } else {
-          // Reconnect automático
+          // Reconnect automático (especialmente para código 515 restartRequired no pareamento de QR Code)
+          console.log('[WhatsApp] Reconectando para finalizar autenticação...');
           setTimeout(() => {
-            if (connectionStatus !== 'connected' && connectionStatus !== 'qr_ready') {
+            if (connectionStatus !== 'connected') {
               startWhatsApp(false).catch(e => console.warn('[WhatsApp] Erro ao reconectar:', e.message));
             }
-          }, 3000);
+          }, statusCode === 515 ? 800 : 2500);
         }
       }
     });

@@ -1581,6 +1581,10 @@ function escapeHtml(text) {
 }
 
 async function refreshQueueStatus() {
+  if (!currentAuthUser) {
+    if (navQueueBadge) navQueueBadge.hidden = true;
+    return;
+  }
   try {
     const uid = getActiveUserId();
     const res = await fetch(apiUrl(`/api/queue/status?userId=${encodeURIComponent(uid)}`), { cache: 'no-store' });
@@ -1596,12 +1600,17 @@ async function refreshQueueStatus() {
 function renderQueueUI(status) {
   if (!status) return;
 
+  if (!currentAuthUser) {
+    if (navQueueBadge) navQueueBadge.hidden = true;
+    return;
+  }
+
   const count = Number(status.queueCount ?? (status.items ? status.items.length : 0));
   if (queueCountText) queueCountText.textContent = count;
 
   // Atualiza badge no menu lateral
   if (navQueueBadge) {
-    if (count > 0) {
+    if (count > 0 && currentAuthUser) {
       navQueueBadge.textContent = count;
       navQueueBadge.hidden = false;
     } else {
@@ -2217,6 +2226,7 @@ function updateAuthUI() {
     }
     if (sideLabelFerramentas) sideLabelFerramentas.hidden = true;
     if (sideToolsNav) sideToolsNav.hidden = true;
+    if (navQueueBadge) navQueueBadge.hidden = true;
     if (sideVisitorBuy) sideVisitorBuy.hidden = false;
     if (sideVisitorLogin) sideVisitorLogin.hidden = false;
 

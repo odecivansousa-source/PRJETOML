@@ -2,7 +2,9 @@
   display: none !important;
 }
 
-#app-tools-container[hidden] {
+#app-tools-container[hidden],
+#side-tools-nav[hidden],
+#side-label-ferramentas[hidden] {
   display: none !important;
 }
 
