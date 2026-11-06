@@ -74,18 +74,17 @@ async function startWhatsApp(forceNew = false) {
     await disconnectWhatsApp();
   }
 
-  // Se já está conectado, retorna
-  if (sock && connectionStatus === 'connected') {
+  // Se já está conectado e não pediu forceNew, retorna
+  if (!forceNew && sock && connectionStatus === 'connected') {
     return getStatus();
   }
 
-  // Se já está com QR pronto e aguardando scan, retorna o QR atual
-  if (sock && connectionStatus === 'qr_ready' && qrDataUrl) {
+  // Se já tem QR pronto e não pediu forceNew, retorna
+  if (!forceNew && sock && connectionStatus === 'qr_ready' && qrDataUrl) {
     return getStatus();
   }
 
-  // Se já está em processo de conexão, evita chamadas concorrentes
-  if (isConnecting) {
+  if (isConnecting && !forceNew) {
     return getStatus();
   }
 
@@ -109,22 +108,29 @@ async function startWhatsApp(forceNew = false) {
       fs.mkdirSync(AUTH_DIR, { recursive: true });
     }
 
-    // Tenta restaurar credenciais do Supabase se o diretório local estiver vazio
-    try {
-      const credsPath = path.join(AUTH_DIR, 'creds.json');
-      if (!fs.existsSync(credsPath)) {
-        const db = require('./supabase');
-        const remoteCreds = await db.loadAuthCredential('creds.json');
-        if (remoteCreds) {
-          fs.writeFileSync(credsPath, typeof remoteCreds === 'string' ? remoteCreds : JSON.stringify(remoteCreds), 'utf8');
-          console.log('[WhatsApp] Sessão recuperada da nuvem Supabase!');
+    // Tenta restaurar credenciais do Supabase APENAS se NÃO for forceNew
+    if (!forceNew) {
+      try {
+        const credsPath = path.join(AUTH_DIR, 'creds.json');
+        if (!fs.existsSync(credsPath)) {
+          const db = require('./supabase');
+          const remoteCreds = await db.loadAuthCredential('creds.json');
+          if (remoteCreds) {
+            fs.writeFileSync(credsPath, typeof remoteCreds === 'string' ? remoteCreds : JSON.stringify(remoteCreds), 'utf8');
+            console.log('[WhatsApp] Sessão recuperada da nuvem Supabase!');
+          }
         }
+      } catch (e) {
+        // Ignora falha de restauração
       }
-    } catch (e) {
-      // Ignora falha de restauração
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+
+    // Se foi pedido novo QR, garante que o estado local não fique preso como registrado
+    if (forceNew && state?.creds?.registered) {
+      state.creds.registered = false;
+    }
 
     sock = makeWASocket({
       auth: state,
@@ -135,6 +141,7 @@ async function startWhatsApp(forceNew = false) {
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 0,
       keepAliveIntervalMs: 25000,
+      printQRInTerminal: false
     });
 
     sock.ev.on('creds.update', async () => {
@@ -149,6 +156,9 @@ async function startWhatsApp(forceNew = false) {
       } catch (e) {}
     });
 
+    let qrPromiseResolve = null;
+    const qrPromise = new Promise(resolve => { qrPromiseResolve = resolve; });
+
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
@@ -157,7 +167,9 @@ async function startWhatsApp(forceNew = false) {
         try {
           qrDataUrl = await QRCode.toDataURL(qr, { width: 320, margin: 2 });
           connectionStatus = 'qr_ready';
-          console.log('[WhatsApp] Novo QR Code gerado.');
+          isConnecting = false;
+          console.log('[WhatsApp] Novo QR Code gerado com sucesso!');
+          if (qrPromiseResolve) qrPromiseResolve(qrDataUrl);
         } catch (e) {
           console.error('[WhatsApp] Erro ao gerar imagem QR:', e);
         }
@@ -180,11 +192,6 @@ async function startWhatsApp(forceNew = false) {
             await fetchGroups();
             const config = readConfig();
             if (!config.groupId) {
-              // Tenta vincular pelo convite do grupo Mossoró Ofertas
-              try {
-                await sock.groupAcceptInvite('JpXC7HRpu7N6PmPY6CT8iw');
-                await fetchGroups();
-              } catch {}
               const mossoro = cachedGroups.find(g => /mossor[oó]/i.test(g.name));
               if (mossoro) {
                 saveConfig({ groupId: mossoro.id, groupName: mossoro.name });
@@ -198,30 +205,37 @@ async function startWhatsApp(forceNew = false) {
       }
 
       if (connection === 'close') {
-        isConnecting = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason?.loggedOut;
-        console.log(`[WhatsApp] Conexão fechada. Código: ${statusCode}. Reconectar? ${shouldReconnect}`);
-
-        try { sock.ev.removeAllListeners(); } catch {}
-        sock = null;
+        console.log(`[WhatsApp] Conexão encerrada. Código: ${statusCode}`);
 
         if (statusCode === DisconnectReason?.loggedOut) {
           connectionStatus = 'disconnected';
           connectedUser = null;
           currentQR = null;
           qrDataUrl = null;
+          isConnecting = false;
           try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
+          try {
+            const db = require('./supabase');
+            db.saveAuthCredential('creds.json', '');
+          } catch {}
           console.log('[WhatsApp] Sessão deslogada.');
         } else {
-          // Reconnect automático (inclusive para código 515 restartRequired)
-          connectionStatus = 'connecting';
+          // Reconnect automático
           setTimeout(() => {
-            startWhatsApp(false).catch(e => console.warn('[WhatsApp] Erro ao reconectar:', e.message));
-          }, 1500);
+            if (connectionStatus !== 'connected' && connectionStatus !== 'qr_ready') {
+              startWhatsApp(false).catch(e => console.warn('[WhatsApp] Erro ao reconectar:', e.message));
+            }
+          }, 3000);
         }
       }
     });
+
+    // Aguarda até 4 segundos para tentar entregar o QR na mesma requisição
+    await Promise.race([
+      qrPromise,
+      new Promise(resolve => setTimeout(resolve, 4000))
+    ]);
 
     isConnecting = false;
     return getStatus();
@@ -248,6 +262,10 @@ async function disconnectWhatsApp() {
     qrDataUrl = null;
     cachedGroups = [];
     try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
+    try {
+      const db = require('./supabase');
+      await db.saveAuthCredential('creds.json', '');
+    } catch {}
     saveConfig({ groupId: null, groupName: null });
     return { ok: true, message: 'WhatsApp desconectado com sucesso.' };
   } catch (e) {

@@ -933,13 +933,41 @@ async function loadWhatsAppGroups(selectedId = null) {
 
 whatsappStartBtn?.addEventListener('click', async () => {
   whatsappStartBtn.disabled = true;
-  whatsappStartBtn.textContent = 'Iniciando WhatsApp...';
+  whatsappStartBtn.textContent = 'Gerando QR Code...';
+
+  // Exibe imediatamente a caixa do QR Code com o indicador de carregamento
+  if (whatsappDisconnectedBox) whatsappDisconnectedBox.hidden = false;
+  if (whatsappConnectedBox) whatsappConnectedBox.hidden = true;
+  if (whatsappQrBox) whatsappQrBox.hidden = false;
+  if (qrSpinner) qrSpinner.hidden = false;
+  if (whatsappQrImg) whatsappQrImg.hidden = true;
+  if (whatsappStatusBadge) {
+    whatsappStatusBadge.textContent = 'Gerando QR...';
+    whatsappStatusBadge.classList.add('inactive');
+  }
+  if (whatsappConnDesc) {
+    whatsappConnDesc.textContent = 'Conectando aos servidores do WhatsApp para gerar o QR Code...';
+  }
+
   try {
-    await postJson('/api/whatsapp/start', { forceNew: false });
-    showToast('Gerando QR Code... Aponte a câmera do WhatsApp!');
-    setTimeout(refreshWhatsAppStatus, 1000);
+    const res = await postJson('/api/whatsapp/start', { forceNew: true });
+    if (res && res.status === 'qr_ready' && res.qrCode) {
+      if (whatsappQrImg) {
+        whatsappQrImg.src = res.qrCode;
+        whatsappQrImg.hidden = false;
+      }
+      if (qrSpinner) qrSpinner.hidden = true;
+      if (whatsappStatusBadge) whatsappStatusBadge.textContent = 'Escanear QR';
+      if (whatsappConnDesc) whatsappConnDesc.textContent = 'Aponte a câmera do WhatsApp para o QR Code abaixo:';
+    } else {
+      showToast('Aguarde alguns segundos enquanto o WhatsApp gera o QR Code...');
+    }
+
+    if (whatsappPollInterval) clearInterval(whatsappPollInterval);
+    whatsappPollInterval = setInterval(refreshWhatsAppStatus, 2000);
   } catch (err) {
     showToast('Erro ao iniciar WhatsApp: ' + err.message, true);
+    if (qrSpinner) qrSpinner.hidden = true;
   } finally {
     whatsappStartBtn.disabled = false;
     whatsappStartBtn.innerHTML = '<span>📲</span> Conectar WhatsApp (Gerar QR Code)';
