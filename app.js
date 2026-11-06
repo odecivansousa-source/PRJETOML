@@ -1882,11 +1882,429 @@ function initWhatsApp() {
   refreshWhatsAppStatus();
 }
 
+// ==========================================
+// DISPARALINK74 — AUTENTICAÇÃO E ADMINISTRAÇÃO (SAAS)
+// ==========================================
+
+const USER_SESSION_KEY = 'disparalink_user_v3';
+let currentAuthUser = null;
+
+// Elementos Auth & Topbar
+const btnLoginOpen = $('#btn-login-open');
+const btnHeroLogin = $('#btn-hero-login');
+const userLoggedInfo = $('#user-logged-info');
+const userRoleBadge = $('#user-role-badge');
+const userNameText = $('#user-name-text');
+const userDaysPill = $('#user-days-pill');
+const btnLogout = $('#btn-logout');
+const navAdminLink = $('#nav-admin-link');
+const adminSection = $('#admin-section');
+const sideUserAvatar = $('#side-user-avatar');
+const sideUserName = $('#side-user-name');
+const sideUserRole = $('#side-user-role');
+const sideSubInfo = $('#side-sub-info');
+
+// Modais
+const loginModal = $('#login-modal');
+const btnCloseLoginModal = $('#btn-close-login-modal');
+const loginForm = $('#login-form');
+const loginEmail = $('#login-email');
+const loginPassword = $('#login-password');
+const loginErrorBox = $('#login-error-box');
+
+const newUserModal = $('#new-user-modal');
+const btnOpenNewUserModal = $('#btn-open-new-user-modal');
+const btnCloseNewUserModal = $('#btn-close-new-user-modal');
+const newUserForm = $('#new-user-form');
+const newUserErrorBox = $('#new-user-error-box');
+
+const expiredModal = $('#expired-modal');
+const btnExpiredLogout = $('#btn-expired-logout');
+
+// Elementos Admin
+const metricTotalUsers = $('#metric-total-users');
+const metricActiveUsers = $('#metric-active-users');
+const metricRevenue = $('#metric-revenue');
+const metricExpiredUsers = $('#metric-expired-users');
+const adminUsersList = $('#admin-users-list');
+const btnRefreshUsers = $('#btn-refresh-users');
+
+function loadSession() {
+  try {
+    const saved = localStorage.getItem(USER_SESSION_KEY);
+    if (saved) {
+      currentAuthUser = JSON.parse(saved);
+      updateAuthUI();
+    } else {
+      // Login inicial automático como Admin para Odecivan
+      currentAuthUser = {
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'Odecivan (Administrador)',
+        email: 'odecivansousa@gmail.com',
+        role: 'admin',
+        daysLeft: 9999,
+        isExpired: false
+      };
+      saveSession(currentAuthUser);
+    }
+  } catch (e) {
+    currentAuthUser = null;
+  }
+}
+
+function saveSession(user) {
+  currentAuthUser = user;
+  localStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
+  updateAuthUI();
+}
+
+function clearSession() {
+  currentAuthUser = null;
+  localStorage.removeItem(USER_SESSION_KEY);
+  updateAuthUI();
+}
+
+function updateAuthUI() {
+  if (currentAuthUser) {
+    if (btnLoginOpen) btnLoginOpen.hidden = true;
+    if (userLoggedInfo) userLoggedInfo.hidden = false;
+
+    const isAdmin = currentAuthUser.role === 'admin';
+    if (userNameText) userNameText.textContent = currentAuthUser.name?.split(' ')[0] || 'Usuário';
+
+    if (userRoleBadge) {
+      userRoleBadge.textContent = isAdmin ? '👑 Admin' : '👤 Assinante';
+      userRoleBadge.style.background = isAdmin ? 'rgba(236, 72, 153, 0.15)' : 'rgba(113, 80, 237, 0.12)';
+      userRoleBadge.style.color = isAdmin ? '#db2777' : 'var(--purple)';
+    }
+
+    if (userDaysPill) {
+      if (isAdmin) {
+        userDaysPill.textContent = 'Acesso Vitalício';
+        userDaysPill.className = 'user-days-pill';
+      } else {
+        const days = Number(currentAuthUser.daysLeft ?? 30);
+        userDaysPill.textContent = `${days} dias`;
+        userDaysPill.className = 'user-days-pill' + (days <= 0 ? ' expired' : days <= 5 ? ' warn' : '');
+      }
+    }
+
+    // Sidebar
+    if (sideUserName) sideUserName.textContent = currentAuthUser.name?.slice(0, 16) || 'DISPARALINK74';
+    if (sideUserAvatar) sideUserAvatar.textContent = (currentAuthUser.name?.[0] || 'D').toUpperCase();
+    if (sideUserRole) sideUserRole.textContent = isAdmin ? 'Administrador Master' : 'Assinante Ativo';
+    if (sideSubInfo) sideSubInfo.textContent = isAdmin ? 'Controle Total' : `${currentAuthUser.daysLeft || 30} Dias Restantes`;
+
+    // Painel Admin exclusivo
+    if (navAdminLink) navAdminLink.hidden = !isAdmin;
+    if (adminSection && isAdmin) {
+      adminSection.hidden = false;
+      loadAdminUsers();
+    } else if (adminSection) {
+      adminSection.hidden = true;
+    }
+
+    // Paywall para clientes vencidos
+    if (currentAuthUser.isExpired && !isAdmin) {
+      if (expiredModal) expiredModal.hidden = false;
+    } else {
+      if (expiredModal) expiredModal.hidden = true;
+    }
+  } else {
+    if (btnLoginOpen) btnLoginOpen.hidden = false;
+    if (userLoggedInfo) userLoggedInfo.hidden = true;
+    if (navAdminLink) navAdminLink.hidden = true;
+    if (adminSection) adminSection.hidden = true;
+
+    if (sideUserName) sideUserName.textContent = 'DISPARALINK74';
+    if (sideUserAvatar) sideUserAvatar.textContent = 'D';
+    if (sideUserRole) sideUserRole.textContent = 'Automação & Vendas';
+    if (sideSubInfo) sideSubInfo.textContent = 'R$ 30 / 30 Dias';
+  }
+}
+
+// Modal de Login
+function openLoginModal() {
+  if (loginErrorBox) loginErrorBox.hidden = true;
+  if (loginModal) loginModal.hidden = false;
+  loginEmail?.focus();
+}
+
+function closeLoginModal() {
+  if (loginModal) loginModal.hidden = true;
+}
+
+btnLoginOpen?.addEventListener('click', openLoginModal);
+btnHeroLogin?.addEventListener('click', openLoginModal);
+btnCloseLoginModal?.addEventListener('click', closeLoginModal);
+loginModal?.addEventListener('click', (e) => {
+  if (e.target === loginModal) closeLoginModal();
+});
+
+loginForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value.trim();
+  const submitBtn = $('#btn-login-submit');
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Entrando...';
+  if (loginErrorBox) loginErrorBox.hidden = true;
+
+  try {
+    const res = await postJson('/api/auth/login', { email, password });
+    if (!res.ok) throw new Error(res.error || 'Falha ao entrar.');
+    saveSession(res.user);
+    closeLoginModal();
+    showToast(`Bem-vindo, ${res.user.name}!`);
+
+    if (res.user.isExpired && res.user.role !== 'admin') {
+      if (expiredModal) expiredModal.hidden = false;
+    } else {
+      // Rola até o gerador de ofertas
+      $('#criar')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  } catch (err) {
+    if (loginErrorBox) {
+      loginErrorBox.textContent = err.message || 'Erro ao realizar login.';
+      loginErrorBox.hidden = false;
+    }
+    showToast(err.message, true);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<span>🚀</span> Entrar Agora';
+  }
+});
+
+btnLogout?.addEventListener('click', () => {
+  if (confirm('Deseja realmente sair da sua conta?')) {
+    clearSession();
+    showToast('Você saiu da sua conta.');
+  }
+});
+
+btnExpiredLogout?.addEventListener('click', () => {
+  clearSession();
+  if (expiredModal) expiredModal.hidden = true;
+});
+
+// ==========================================
+// GESTÃO DE CLIENTES (ADMIN PANEL)
+// ==========================================
+
+async function loadAdminUsers() {
+  if (!currentAuthUser || currentAuthUser.role !== 'admin') return;
+  if (adminUsersList) adminUsersList.innerHTML = '<div class="users-loading">Carregando lista de assinantes...</div>';
+
+  try {
+    const res = await fetch(apiUrl('/api/admin/users'), { cache: 'no-store' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    const users = data.users || [];
+    renderAdminUsers(users);
+  } catch (err) {
+    if (adminUsersList) {
+      adminUsersList.innerHTML = `<div style="color:var(--red); padding:14px;">Erro ao carregar clientes: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+}
+
+function renderAdminUsers(users) {
+  const clients = users.filter(u => u.role !== 'admin');
+  const activeClients = clients.filter(u => u.status === 'active' && u.daysLeft > 0);
+  const expiredClients = clients.filter(u => u.status === 'expired' || u.daysLeft <= 0 || u.status === 'blocked');
+
+  if (metricTotalUsers) metricTotalUsers.textContent = clients.length;
+  if (metricActiveUsers) metricActiveUsers.textContent = activeClients.length;
+  if (metricRevenue) metricRevenue.textContent = `R$ ${activeClients.length * 30},00`;
+  if (metricExpiredUsers) metricExpiredUsers.textContent = expiredClients.length;
+
+  if (!adminUsersList) return;
+
+  if (users.length === 0) {
+    adminUsersList.innerHTML = `
+      <div style="text-align:center; padding:30px; color:var(--muted);">
+        Nenhum cliente cadastrado ainda. Clique em <b>+ Cadastrar Novo Assinante</b> para adicionar seu primeiro cliente!
+      </div>
+    `;
+    return;
+  }
+
+  adminUsersList.innerHTML = users.map(u => {
+    const isAdmin = u.role === 'admin';
+    const days = isAdmin ? 9999 : Number(u.daysLeft || 0);
+    const isExp = !isAdmin && (days <= 0 || u.status === 'expired');
+    const isWarn = !isAdmin && !isExp && days <= 3;
+    const whatsClean = String(u.whatsapp || '').replace(/\D/g, '');
+
+    const badgeClass = isAdmin ? 'active' : isExp ? 'expired' : isWarn ? 'warn' : 'active';
+    const badgeText = isAdmin ? '👑 Administrador' : isExp ? '🔴 Expirado' : isWarn ? `🟡 Vence em ${days}d` : `🟢 ${days} dias restantes`;
+
+    // Mensagem de cobrança personalizada para o WhatsApp
+    const billMsg = encodeURIComponent(`Olá ${u.name}! Passando para avisar que sua assinatura de 30 dias do DISPARALINK74 venceu. Para renovar por mais 30 dias por R$ 30,00, a chave PIX é o meu telefone: 84999415379. Aguardo seu comprovante!`);
+    const chatUrl = whatsClean ? `https://wa.me/55${whatsClean.replace(/^55/, '')}?text=${billMsg}` : '#';
+
+    return `
+      <div class="admin-user-card" data-user-id="${escapeHtml(u.id)}">
+        <div class="user-card-main">
+          <div class="user-card-avatar" style="${isAdmin ? 'background:#fce7f3; color:#db2777;' : ''}">
+            ${isAdmin ? '👑' : escapeHtml((u.name?.[0] || 'C').toUpperCase())}
+          </div>
+          <div class="user-card-info">
+            <b>${escapeHtml(u.name)} ${isAdmin ? '<small style="color:#db2777;">(Você)</small>' : ''}</b>
+            <small>📧 ${escapeHtml(u.email)} ${u.whatsapp ? `• 📱 ${escapeHtml(u.whatsapp)}` : ''}</small>
+          </div>
+        </div>
+
+        <div class="user-card-status-col">
+          <span class="client-status-badge ${badgeClass}">${badgeText}</span>
+          ${!isAdmin ? `<small style="font-size:11px; color:var(--muted);">Expira em: ${new Date(u.accessExpiresAt).toLocaleDateString('pt-BR')}</small>` : ''}
+        </div>
+
+        <div class="user-card-actions">
+          ${!isAdmin ? `
+            <button type="button" class="btn-renew-pill" data-action="renew" data-user-id="${escapeHtml(u.id)}" data-user-name="${escapeHtml(u.name)}" title="Adicionar mais 30 dias de acesso com 1 clique">
+              ➕ +30 Dias (PIX)
+            </button>
+            ${whatsClean ? `
+              <a href="${chatUrl}" target="_blank" rel="noopener noreferrer" class="btn-wpp-chat" title="Enviar mensagem no WhatsApp">
+                💬 WhatsApp
+              </a>
+            ` : ''}
+            <button type="button" class="btn-user-action" data-action="toggle-status" data-user-id="${escapeHtml(u.id)}" data-current-status="${escapeHtml(u.status)}">
+              ${u.status === 'blocked' ? '🔓 Desbloquear' : '🔒 Bloquear'}
+            </button>
+            <button type="button" class="btn-user-action danger" data-action="delete" data-user-id="${escapeHtml(u.id)}" data-user-name="${escapeHtml(u.name)}" title="Excluir cliente">
+              🗑️
+            </button>
+          ` : `
+            <span style="font-size:12px; color:var(--muted); font-weight:700;">Conta Master</span>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Eventos de Ação nos botões da lista
+  adminUsersList.querySelectorAll('button[data-action="renew"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-user-id');
+      const name = btn.getAttribute('data-user-name');
+      if (!confirm(`Confirmar renovação de +30 dias para ${name}?`)) return;
+
+      btn.disabled = true;
+      try {
+        await postJson('/api/admin/users/renew', { userId: id, days: 30 });
+        showToast(`🎉 Acesso de ${name} renovado por mais 30 dias!`);
+        await loadAdminUsers();
+      } catch (err) {
+        showToast('Erro ao renovar: ' + err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  adminUsersList.querySelectorAll('button[data-action="toggle-status"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-user-id');
+      const cur = btn.getAttribute('data-current-status');
+      const newStatus = cur === 'blocked' ? 'active' : 'blocked';
+
+      btn.disabled = true;
+      try {
+        await postJson('/api/admin/users/status', { userId: id, status: newStatus });
+        showToast(newStatus === 'blocked' ? 'Cliente bloqueado.' : 'Cliente desbloqueado!');
+        await loadAdminUsers();
+      } catch (err) {
+        showToast('Erro: ' + err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  adminUsersList.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-user-id');
+      const name = btn.getAttribute('data-user-name');
+      if (!confirm(`Deseja realmente EXCLUIR o cliente ${name}? Esta ação não pode ser desfeita.`)) return;
+
+      btn.disabled = true;
+      try {
+        await postJson('/api/admin/users/delete', { userId: id });
+        showToast(`Cliente ${name} excluído.`);
+        await loadAdminUsers();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+btnRefreshUsers?.addEventListener('click', () => {
+  showToast('Atualizando lista de clientes...');
+  loadAdminUsers();
+});
+
+// Modal de Cadastro de Novo Assinante
+btnOpenNewUserModal?.addEventListener('click', () => {
+  if (newUserErrorBox) newUserErrorBox.hidden = true;
+  if (newUserModal) newUserModal.hidden = false;
+  $('#new-user-name')?.focus();
+});
+
+btnCloseNewUserModal?.addEventListener('click', () => {
+  if (newUserModal) newUserModal.hidden = true;
+});
+
+newUserModal?.addEventListener('click', (e) => {
+  if (e.target === newUserModal) newUserModal.hidden = true;
+});
+
+newUserForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('#new-user-name').value.trim();
+  const whatsapp = $('#new-user-whatsapp').value.trim();
+  const email = $('#new-user-email').value.trim();
+  const password = $('#new-user-password').value.trim();
+  const days = $('#new-user-days').value.trim();
+  const notes = $('#new-user-notes').value.trim();
+  const btn = $('#btn-save-new-user');
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  if (newUserErrorBox) newUserErrorBox.hidden = true;
+
+  try {
+    await postJson('/api/admin/users/create', { name, whatsapp, email, password, days, notes });
+    showToast(`🎉 Cliente ${name} cadastrado com sucesso com 30 dias de acesso!`);
+    newUserModal.hidden = true;
+    newUserForm.reset();
+    $('#new-user-days').value = 30;
+    $('#new-user-password').value = '123456';
+    await loadAdminUsers();
+  } catch (err) {
+    if (newUserErrorBox) {
+      newUserErrorBox.textContent = err.message || 'Erro ao cadastrar cliente.';
+      newUserErrorBox.hidden = false;
+    }
+    showToast(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>✅</span> Salvar e Liberar Acesso';
+  }
+});
+
 // Inicialização
 if (window.location.protocol === 'file:') {
   const banner = $('#file-warning-banner');
   if (banner) banner.hidden = false;
 }
+loadSession();
 initTheme();
 initWhatsApp();
 updateDailyBadge();
