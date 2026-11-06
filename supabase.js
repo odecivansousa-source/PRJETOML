@@ -1,24 +1,59 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bnjrbvlnyvyudotngtrb.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuanJidmxueXZ5dWRvdG5ndHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODI0MjksImV4cCI6MjEwOTE1ODQyOX0.TanRo-ioNOtipU3oJE5YU-zPmhfA-QABjuWvqXP5aNQ';
+function getValidUrl(url, fallback) {
+  if (typeof url === 'string') {
+    const trimmed = url.trim();
+    if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+      return trimmed;
+    }
+  }
+  return fallback;
+}
+
+function getValidKey(key, fallback) {
+  if (typeof key === 'string') {
+    const trimmed = key.trim();
+    if (trimmed.length > 30 && trimmed.startsWith('ey')) {
+      return trimmed;
+    }
+  }
+  return fallback;
+}
+
+const DEFAULT_URL = 'https://bnjrbvlnyvyudotngtrb.supabase.co';
+const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuanJidmxueXZ5dWRvdG5ndHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODI0MjksImV4cCI6MjEwOTE1ODQyOX0.TanRo-ioNOtipU3oJE5YU-zPmhfA-QABjuWvqXP5aNQ';
+
+const SUPABASE_URL = getValidUrl(process.env.SUPABASE_URL, DEFAULT_URL);
+const SUPABASE_KEY = getValidKey(process.env.SUPABASE_KEY, DEFAULT_KEY);
 
 let supabase = null;
-try {
-  supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: false }
-  });
-  console.log('[Supabase] Cliente inicializado com sucesso para:', SUPABASE_URL);
-} catch (err) {
-  console.warn('[Supabase] Falha ao inicializar cliente:', err.message);
+let lastInitError = null;
+
+function getSupabase() {
+  if (supabase) return supabase;
+  try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false }
+    });
+    console.log('[Supabase] Cliente inicializado com sucesso para:', SUPABASE_URL);
+    return supabase;
+  } catch (err) {
+    lastInitError = err.message;
+    console.warn('[Supabase] Falha ao inicializar cliente:', err.message);
+    return null;
+  }
 }
+
+// Inicialização imediata
+getSupabase();
 
 // ==========================================
 // AUTENTICAÇÃO E GESTÃO DE CLIENTES (SAAS)
 // ==========================================
 
 async function loginUser(email, password) {
-  if (!supabase) throw new Error('Banco de dados indisponível no momento.');
+  const sb = getSupabase();
+  if (!sb) throw new Error('Banco de dados indisponível no momento: ' + (lastInitError || 'Verifique as configurações.'));
   const cleanEmail = String(email || '').trim().toLowerCase();
   const cleanPass = String(password || '').trim();
 
@@ -26,13 +61,17 @@ async function loginUser(email, password) {
     throw new Error('Preencha seu e-mail e senha para entrar.');
   }
 
-  const { data: user, error } = await supabase
+  const { data: user, error } = await sb
     .from('linkpronto_users')
     .select('*')
     .eq('email', cleanEmail)
     .maybeSingle();
 
-  if (error || !user) {
+  if (error) {
+    console.error('[Supabase] Erro ao buscar usuário no login:', error);
+    throw new Error('Falha na comunicação com o banco: ' + error.message);
+  }
+  if (!user) {
     throw new Error('E-mail ou senha incorretos. Caso queira assinar, chame no WhatsApp!');
   }
 
