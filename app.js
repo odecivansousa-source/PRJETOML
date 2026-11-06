@@ -1943,6 +1943,12 @@ const expiredModal = $('#expired-modal');
 const btnExpiredLogout = $('#btn-expired-logout');
 const apresentacaoSection = $('#apresentacao-section');
 const appToolsContainer = $('#app-tools-container');
+const visitorLockedCard = $('#visitor-locked-card');
+const btnLockedLogin = $('#btn-locked-login');
+const sideLabelFerramentas = $('#side-label-ferramentas');
+const sideToolsNav = $('#side-tools-nav');
+const sideVisitorBuy = $('#side-visitor-buy');
+const sideVisitorLogin = $('#side-visitor-login');
 
 // Elementos Admin
 const metricTotalUsers = $('#metric-total-users');
@@ -2004,7 +2010,18 @@ function updateAuthUI() {
     if (btnLoginOpen) btnLoginOpen.hidden = true;
     if (userLoggedInfo) userLoggedInfo.hidden = false;
     if (apresentacaoSection) apresentacaoSection.hidden = true;
-    if (appToolsContainer) appToolsContainer.hidden = false;
+    if (visitorLockedCard) {
+      visitorLockedCard.hidden = true;
+      visitorLockedCard.style.display = 'none';
+    }
+    if (appToolsContainer) {
+      appToolsContainer.hidden = false;
+      appToolsContainer.style.display = 'block';
+    }
+    if (sideLabelFerramentas) sideLabelFerramentas.hidden = false;
+    if (sideToolsNav) sideToolsNav.hidden = false;
+    if (sideVisitorBuy) sideVisitorBuy.hidden = true;
+    if (sideVisitorLogin) sideVisitorLogin.hidden = true;
 
     const isAdmin = currentAuthUser.role === 'admin';
     if (userNameText) userNameText.textContent = currentAuthUser.name?.split(' ')[0] || 'Usuário';
@@ -2047,6 +2064,10 @@ function updateAuthUI() {
         expiredModal.hidden = false;
         expiredModal.style.display = 'flex';
       }
+      if (appToolsContainer) {
+        appToolsContainer.hidden = true;
+        appToolsContainer.style.display = 'none';
+      }
     } else {
       if (expiredModal) {
         expiredModal.hidden = true;
@@ -2059,7 +2080,19 @@ function updateAuthUI() {
     if (navAdminLink) navAdminLink.hidden = true;
     if (adminSection) adminSection.hidden = true;
     if (apresentacaoSection) apresentacaoSection.hidden = false;
-    if (appToolsContainer) appToolsContainer.hidden = true;
+    if (visitorLockedCard) {
+      visitorLockedCard.hidden = false;
+      visitorLockedCard.style.display = 'block';
+    }
+    if (appToolsContainer) {
+      appToolsContainer.hidden = true;
+      appToolsContainer.style.display = 'none';
+    }
+    if (sideLabelFerramentas) sideLabelFerramentas.hidden = true;
+    if (sideToolsNav) sideToolsNav.hidden = true;
+    if (sideVisitorBuy) sideVisitorBuy.hidden = false;
+    if (sideVisitorLogin) sideVisitorLogin.hidden = false;
+
     if (expiredModal) {
       expiredModal.hidden = true;
       expiredModal.style.display = 'none';
@@ -2071,6 +2104,9 @@ function updateAuthUI() {
     if (sideSubInfo) sideSubInfo.textContent = 'Assine por R$ 30';
   }
 }
+
+btnLockedLogin?.addEventListener('click', openLoginModal);
+sideVisitorLogin?.addEventListener('click', openLoginModal);
 
 // Modal de Login
 function openLoginModal() {

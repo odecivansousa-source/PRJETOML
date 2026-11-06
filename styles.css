@@ -2,6 +2,54 @@
   display: none !important;
 }
 
+#app-tools-container[hidden] {
+  display: none !important;
+}
+
+.visitor-locked-card {
+  background: var(--paper);
+  border: 1px dashed var(--purple);
+  border-radius: 20px;
+  padding: 36px 24px;
+  text-align: center;
+  margin: 28px 0;
+  box-shadow: 0 10px 30px rgba(113, 80, 237, 0.08);
+}
+
+.visitor-locked-card .lock-big-icon {
+  font-size: 42px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.visitor-locked-card h3 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+
+.visitor-locked-card p {
+  color: var(--muted);
+  font-size: 14.5px;
+  max-width: 540px;
+  margin: 0 auto 20px;
+  line-height: 1.6;
+}
+
+.locked-cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.visitor-cta-nav {
+  color: var(--purple) !important;
+  font-weight: 700 !important;
+}
+
 :root {
   --ink: #1e1b29;
   --ink-secondary: #4a4756;
