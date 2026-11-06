@@ -26,6 +26,8 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 const TELEGRAM_CONFIG = path.join(ROOT, '.linkpronto-telegram.json');
+const DEFAULT_PLATFORM_BOT_TOKEN = process.env.TELEGRAM_DEFAULT_BOT_TOKEN || '9107168154:AAG4NH557LxZL25R36io8543Bqv6BseFcgM';
+const DEFAULT_PLATFORM_BOT_NAME = 'MossoroOfertasLinkBot';
 
 let whatsapp;
 try {
@@ -237,7 +239,21 @@ async function dispatchOfferToChannels(offer, opts = { sendWhatsApp: true, sendT
   // 2. Telegram
   if (opts.sendTelegram) {
     try {
-      const config = readTelegramConfig();
+      let config = null;
+      if (!offer.userId || offer.userId === 'default') {
+        config = readTelegramConfig();
+        if (config && !config.token) config.token = DEFAULT_PLATFORM_BOT_TOKEN;
+      } else if (db) {
+        const s = await db.fetchSettings(offer.userId);
+        if (s?.telegram_chat_id) {
+          config = {
+            token: s.telegram_token || DEFAULT_PLATFORM_BOT_TOKEN,
+            chatId: s.telegram_chat_id,
+            chatTitle: s.telegram_chat_title || 'Telegram'
+          };
+        }
+      }
+
       if (config?.token && config?.chatId) {
         const caption = buildTelegramCaption(offer);
         const image = offer.image;
@@ -745,35 +761,35 @@ const server = http.createServer(async (request, response) => {
   if (requestUrl.pathname === '/api/telegram/status' && request.method === 'GET') {
     const targetUserId = getRequestUserId(requestUrl);
     if (targetUserId === 'visitor') {
-      sendJson(response, 200, { ok: true, configured: false, chatTitle: '', botName: '' });
+      sendJson(response, 200, { ok: true, configured: false, chatTitle: '', botName: DEFAULT_PLATFORM_BOT_NAME });
       return;
     }
     if (targetUserId === 'default') {
       const config = readTelegramConfig();
       sendJson(response, 200, {
         ok: true,
-        configured: Boolean(config?.token && config?.chatId),
+        configured: Boolean(config?.chatId),
         chatTitle: config?.chatTitle || '',
-        botName: config?.botName || ''
+        botName: config?.botName || DEFAULT_PLATFORM_BOT_NAME
       });
       return;
     }
     if (db) {
       try {
         const s = await db.fetchSettings(targetUserId);
-        const configured = Boolean(s?.telegram_token && s?.telegram_chat_id);
+        const configured = Boolean(s?.telegram_chat_id);
         sendJson(response, 200, {
           ok: true,
           configured,
-          chatTitle: s?.telegram_chat_title || (configured ? 'Grupo Telegram Conectado' : ''),
-          botName: ''
+          chatTitle: s?.telegram_chat_title || (configured ? 'Canal Conectado' : ''),
+          botName: DEFAULT_PLATFORM_BOT_NAME
         });
         return;
       } catch (e) {
         console.warn('Erro ao carregar status do Telegram do cliente:', e.message);
       }
     }
-    sendJson(response, 200, { ok: true, configured: false, chatTitle: '', botName: '' });
+    sendJson(response, 200, { ok: true, configured: false, chatTitle: '', botName: DEFAULT_PLATFORM_BOT_NAME });
     return;
   }
 
@@ -809,10 +825,7 @@ const server = http.createServer(async (request, response) => {
     }
     try {
       const body = await readJsonBody(request);
-      const token = String(body.token || '').trim();
-      if (!/^\d+:[A-Za-z0-9_-]{20,}$/.test(token)) throw new Error('Informe primeiro um token válido do @BotFather.');
-      const webhook = await telegramCall(token, 'getWebhookInfo', {});
-      if (webhook.url) throw new Error('Este bot usa webhook em outro sistema; não posso consultar as atualizações sem interferir nele.');
+      const token = String(body.token || '').trim() || DEFAULT_PLATFORM_BOT_TOKEN;
       const updates = await telegramCall(token, 'getUpdates', { limit: 100, allowed_updates: ['message', 'channel_post'] });
       const chats = new Map();
       for (const update of updates) {
@@ -836,24 +849,43 @@ const server = http.createServer(async (request, response) => {
     try {
       const body = await readJsonBody(request);
       const targetUserId = getRequestUserId(requestUrl, body);
-      const token = String(body.token || '').trim();
-      const chatId = String(body.chatId || '').trim();
-      if (!/^\d+:[A-Za-z0-9_-]{20,}$/.test(token)) throw new Error('Confira o token do bot enviado pelo @BotFather.');
-      if (!chatId || chatId.length > 100) throw new Error('Informe o @ do grupo público ou o ID do grupo.');
-      const bot = await telegramCall(token, 'getMe', {});
-      const chat = await telegramCall(token, 'getChat', { chat_id: chatId });
-      const chatTitle = chat.title || chat.username || chatId;
-      const botName = bot.username || '';
+      let token = String(body.token || '').trim();
+      let rawChat = String(body.chatId || '').trim();
+
+      rawChat = rawChat.replace(/^https?:\/\/t\.me\//i, '@').replace(/^t\.me\//i, '@');
+      if (!rawChat.startsWith('-') && !rawChat.startsWith('@') && /^[a-zA-Z0-9_]{3,}$/.test(rawChat)) {
+        rawChat = '@' + rawChat;
+      }
+      if (!rawChat) throw new Error('Informe o @ do canal ou grupo (ex: @seucanal ou link t.me/seucanal).');
+
+      // Se o usuário não passou token, usa o bot oficial padrão da plataforma
+      if (!token) {
+        token = DEFAULT_PLATFORM_BOT_TOKEN;
+      } else if (!/^\d+:[A-Za-z0-9_-]{20,}$/.test(token)) {
+        throw new Error('Token inválido. Deixe em branco para usar o Bot Oficial!');
+      }
+
+      const bot = await telegramCall(token, 'getMe', {}).catch(err => {
+        throw new Error('Falha ao comunicar com o Telegram: ' + err.message);
+      });
+      const botName = bot.username || DEFAULT_PLATFORM_BOT_NAME;
+
+      const chat = await telegramCall(token, 'getChat', { chat_id: rawChat }).catch(err => {
+        throw new Error(`O bot @${botName} ainda não foi adicionado como Administrador no canal/grupo "${rawChat}". Abra seu canal no Telegram, vá em Administradores > Adicionar Administrador, busque por @${botName} e conceda permissão de postar!`);
+      });
+
+      const chatTitle = chat.title || chat.username || rawChat;
+      const resolvedChatId = String(chat.id || rawChat);
 
       if (targetUserId === 'default') {
-        const config = { token, chatId, chatTitle, botName };
+        const config = { token, chatId: resolvedChatId, chatTitle, botName };
         const temporaryPath = `${TELEGRAM_CONFIG}.tmp`;
         fs.writeFileSync(temporaryPath, JSON.stringify(config), { mode: 0o600 });
         fs.renameSync(temporaryPath, TELEGRAM_CONFIG);
       } else if (db) {
         await db.updateSettings({
-          telegramToken: token,
-          telegramChatId: chatId,
+          telegramToken: token === DEFAULT_PLATFORM_BOT_TOKEN ? '' : token,
+          telegramChatId: resolvedChatId,
           telegramChatTitle: chatTitle,
           sendTelegram: true
         }, targetUserId);
@@ -877,18 +909,19 @@ const server = http.createServer(async (request, response) => {
 
       if (targetUserId === 'default') {
         config = readTelegramConfig();
+        if (config && !config.token) config.token = DEFAULT_PLATFORM_BOT_TOKEN;
       } else if (db) {
         const s = await db.fetchSettings(targetUserId);
-        if (s?.telegram_token && s?.telegram_chat_id) {
+        if (s?.telegram_chat_id) {
           config = {
-            token: s.telegram_token,
+            token: s.telegram_token || DEFAULT_PLATFORM_BOT_TOKEN,
             chatId: s.telegram_chat_id,
-            chatTitle: s.telegram_chat_title || 'Grupo Telegram'
+            chatTitle: s.telegram_chat_title || 'Canal Telegram'
           };
         }
       }
 
-      if (!config?.token || !config?.chatId) throw new Error('Configure o bot e o grupo do Telegram antes de publicar.');
+      if (!config?.token || !config?.chatId) throw new Error('Conecte seu canal ou grupo do Telegram antes de publicar.');
       const affiliateUrl = safeUrl(String(body.affiliateUrl || ''), [...REDIRECT_HOSTS]).toString();
       const caption = buildTelegramCaption({ ...body, affiliateUrl });
       if (caption.length > 4096) throw new Error('O link e o texto passaram do limite de mensagem do Telegram.');

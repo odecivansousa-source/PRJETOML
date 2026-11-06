@@ -711,7 +711,7 @@ async function refreshTelegramStatus() {
     const disconnectBtn = $('#telegram-disconnect');
 
     if (result.configured) {
-      if (desc) desc.textContent = `Conectado ao grupo: ${result.chatTitle}`;
+      if (desc) desc.textContent = `Conectado ao canal/grupo: ${result.chatTitle}`;
       if (badge) {
         badge.textContent = 'Conectado';
         badge.classList.remove('inactive');
@@ -720,19 +720,19 @@ async function refreshTelegramStatus() {
       const sendBtn = $('#telegram-send-button');
       if (sendBtn) sendBtn.title = `Publicar em ${result.chatTitle}`;
     } else {
-      if (desc) desc.textContent = 'Conecte um bot criado no @BotFather para enviar direto.';
+      if (desc) desc.textContent = 'Adicione o bot oficial @MossoroOfertasLinkBot como administrador no seu canal';
       if (badge) {
         badge.textContent = 'Não configurado';
         badge.classList.add('inactive');
       }
       if (disconnectBtn) disconnectBtn.hidden = true;
       const sendBtn = $('#telegram-send-button');
-      if (sendBtn) sendBtn.title = 'Configure o bot e grupo primeiro';
+      if (sendBtn) sendBtn.title = 'Conecte seu canal do Telegram primeiro';
     }
   } catch { /* Conexão local ainda iniciando */ }
 }
 
-$('#telegram-discover').addEventListener('click', async () => {
+$('#telegram-discover')?.addEventListener('click', async () => {
   const button = $('#telegram-discover');
   const token = $('#telegram-token').value.trim();
   const select = $('#telegram-chat');
@@ -753,24 +753,31 @@ $('#telegram-discover').addEventListener('click', async () => {
   }
 });
 
-$('#telegram-save').addEventListener('click', async () => {
+$('#telegram-save')?.addEventListener('click', async () => {
   const button = $('#telegram-save');
+  const manualInput = $('#telegram-chat-manual');
+  const chatId = (manualInput?.value || '').trim();
+  if (!chatId) {
+    showToast('Digite o @ ou link do seu canal do Telegram primeiro!', true);
+    manualInput?.focus();
+    return;
+  }
   button.disabled = true;
+  button.textContent = 'Conectando ao canal...';
   try {
     const result = await postJson('/api/telegram/config', {
       userId: getActiveUserId(),
-      token: $('#telegram-token').value.trim(),
-      chatId: $('#telegram-chat').value || $('#telegram-chat-manual').value.trim(),
+      token: ($('#telegram-token')?.value || '').trim(),
+      chatId,
     });
-    $('#telegram-token').value = '';
-    $('#whatsapp-section').open = false;
-    $('#share-status').textContent = `Telegram conectado ao grupo ${result.chatTitle}.`;
-    showToast(`Conectado com sucesso ao grupo ${result.chatTitle}!`);
+    $('#share-status').textContent = `Telegram conectado ao canal ${result.chatTitle}.`;
+    showToast(`✅ Conectado com sucesso ao canal "${result.chatTitle}"!`);
     await refreshTelegramStatus();
   } catch (error) {
-    showToast(error.message || 'Não foi possível salvar a conexão.', true);
+    showToast(error.message || 'Não foi possível conectar ao Telegram.', true);
   } finally {
     button.disabled = false;
+    button.textContent = 'Conectar Telegram';
   }
 });
 
@@ -1975,14 +1982,12 @@ async function initWhatsApp() {
 
   applyGroupLink(link || '');
 
-  // O robô Baileys por QR Code do servidor fica visível apenas para o Administrador Master
-  const isClient = currentAuthUser && currentAuthUser.role !== 'admin';
   const serverBotBox = $('#whatsapp-bot-server-box');
   if (serverBotBox) {
-    serverBotBox.style.display = isClient ? 'none' : 'block';
+    serverBotBox.style.display = 'block';
   }
 
-  if (uid === 'default') {
+  if (uid !== 'visitor') {
     refreshWhatsAppStatus();
   }
 }

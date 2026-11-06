@@ -506,38 +506,46 @@
               </div>
             </div>
 
-            <!-- BLOCO TELEGRAM -->
+            <!-- BLOCO TELEGRAM (ROBÔ 24H NO CANAL) -->
             <div class="channel-card telegram-card">
               <div class="channel-card-head">
                 <span class="channel-card-icon telegram-icon">➤</span>
                 <div>
-                  <h3>Bot do Telegram</h3>
-                  <small id="telegram-status-desc">Publicação em 1 clique via bot oficial</small>
+                  <h3>Canal / Grupo do Telegram</h3>
+                  <small id="telegram-status-desc">Disparos 24h automáticos via Bot Oficial</small>
                 </div>
-                <span class="channel-badge-active" id="telegram-status-badge">Conectado</span>
+                <span class="channel-badge-active" id="telegram-status-badge">Não configurado</span>
               </div>
-              <p class="channel-desc">Publica a foto com a legenda formatada diretamente no canal ou grupo sem precisar abrir o app.</p>
-              <label class="channel-field">
-                <span>Token do bot (@BotFather)</span>
-                <input id="telegram-token" type="password" autocomplete="off" placeholder="Cole o token do bot...">
-              </label>
-              <div class="channel-btn-row">
-                <button class="secondary-button" id="telegram-discover" type="button">Localizar meu grupo</button>
+              
+              <div class="channel-desc" style="background: rgba(0, 136, 204, 0.08); border: 1px solid rgba(0, 136, 204, 0.25); border-radius: 10px; padding: 12px; margin: 12px 0 16px; font-size: 13px; line-height: 1.5;">
+                <b style="color: #38bdf8;">Como conectar em 1 minuto:</b><br>
+                1. No Telegram, abra seu canal/grupo, vá em <b>Administradores</b> ➔ <b>Adicionar Administrador</b>.<br>
+                2. Busque por <b style="color: #60a5fa; user-select: all;">@MossoroOfertasLinkBot</b> e dê permissão para postar.<br>
+                3. Digite o <b>@</b> ou <b>Link</b> do seu canal abaixo e clique em <b>Conectar Telegram</b>!
               </div>
+
               <label class="channel-field">
-                <span>Grupo localizado</span>
-                <select id="telegram-chat">
-                  <option value="">Cole o token e localize o grupo</option>
-                </select>
+                <span>@ do seu canal, link ou ID (ex: @meucanal ou https://t.me/meucanal):</span>
+                <input id="telegram-chat-manual" type="text" autocomplete="off" placeholder="@seucanal ou https://t.me/seucanal">
               </label>
-              <label class="channel-field">
-                <span>Ou digite o @ do canal / ID</span>
-                <input id="telegram-chat-manual" type="text" autocomplete="off" placeholder="@meucanal ou -1001234567890">
-              </label>
+
               <div class="channel-btn-row">
-                <button class="primary-button telegram-save" id="telegram-save" type="button">Salvar Telegram</button>
+                <button class="primary-button telegram-save" id="telegram-save" type="button">Conectar Telegram</button>
                 <button class="disconnect-button" id="telegram-disconnect" type="button" title="Desconectar bot atual">Desconectar</button>
               </div>
+
+              <!-- CONFIGURAÇÃO AVANÇADA (OPCIONAL) -->
+              <details style="margin-top: 14px; font-size: 12px; opacity: 0.85;">
+                <summary style="cursor: pointer; color: var(--muted-text);">⚙️ Opção avançada: Usar meu próprio bot do @BotFather</summary>
+                <div style="margin-top: 8px;">
+                  <label class="channel-field">
+                    <span>Token do bot próprio (deixe em branco para usar o bot oficial):</span>
+                    <input id="telegram-token" type="password" autocomplete="off" placeholder="Deixe em branco para usar o bot oficial">
+                  </label>
+                  <select id="telegram-chat" style="display:none;"><option value=""></option></select>
+                  <button id="telegram-discover" type="button" style="display:none;"></button>
+                </div>
+              </details>
             </div>
           </div>
         </section>
