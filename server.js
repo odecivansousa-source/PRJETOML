@@ -1271,6 +1271,23 @@ const server = http.createServer(async (request, response) => {
     }
   }
 
+  if (requestUrl.pathname === '/api/queue/update-image' && request.method === 'POST') {
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    try {
+      const body = await readJsonBody(request);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'default' && scheduler) {
+        await scheduler.updateItemImage(body.id, body.image);
+      }
+      if (db) {
+        await db.updateQueueItem(body.id, { image: body.image }, targetUserId);
+      }
+      return sendJson(response, 200, { ok: true });
+    } catch (err) {
+      return sendJson(response, 400, { ok: false, error: err.message });
+    }
+  }
+
   if (requestUrl.pathname === '/api/queue/remove' && request.method === 'POST') {
     if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
     try {

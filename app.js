@@ -1172,7 +1172,7 @@ function loadImage(src) {
   });
 }
 
-async function generateOfferCanvas(format = 'feed', theme = 'purple') {
+async function generateOfferCanvas(format = 'feed', theme = 'purple', customProduct = null) {
   if (document.fonts && document.fonts.ready) {
     try { await document.fonts.ready; } catch {}
   }
@@ -1242,7 +1242,7 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple') {
   ctx.fillText('ACHADOS & PREÇOS BAIXOS', isFeed ? 144 : 158, isFeed ? 106 : 136);
 
   // Badge da Loja
-  const storeName = (product?.store || 'OFERTA').toLocaleUpperCase('pt-BR');
+  const storeName = (customProduct?.store || product?.store || 'OFERTA').toLocaleUpperCase('pt-BR');
   const storeBadgeX = width - (isFeed ? 320 : 340);
   ctx.fillStyle = primaryColor;
   ctx.beginPath();
@@ -1282,7 +1282,8 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple') {
     h: isFeed ? 420 : 540
   };
 
-  const image = await loadImage(product?.image);
+  const productImgSrc = customProduct?.image || product?.image;
+  const image = await loadImage(productImgSrc);
   if (image) {
     const scale = Math.min(imgBox.w / image.naturalWidth, imgBox.h / image.naturalHeight);
     const w = image.naturalWidth * scale;
@@ -1300,8 +1301,16 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple') {
     ctx.textAlign = 'left';
   }
 
+  // Preço e Desconto
+  const price = customProduct ? Number(customProduct.price) : parseCurrencyInput(priceInput);
+  const originalPrice = customProduct ? Number(customProduct.originalPrice) : parseCurrencyInput(originalPriceInput);
+  const discount = customProduct
+    ? (Number.isFinite(originalPrice) && originalPrice > price && Number.isFinite(price) && price > 0
+        ? { valid: true, percent: Math.round(((originalPrice - price) / originalPrice) * 100) }
+        : { valid: false, percent: 0 })
+    : calculateDiscount();
+
   // Selo de Desconto no canto superior da imagem (% OFF)
-  const discount = calculateDiscount();
   if (discount.valid) {
     ctx.fillStyle = '#ff4757';
     ctx.beginPath();
@@ -1315,14 +1324,13 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple') {
   }
 
   // Título do Produto
+  const titleText = customProduct?.title || currentTitle();
   const titleY = imgBox.y + imgBox.h + 46;
   ctx.fillStyle = textDark;
   ctx.font = '800 36px "Manrope", Arial, sans-serif';
-  drawTextBlock(ctx, currentTitle(), boxX + 40, titleY, boxW - 80, 48, 2);
+  drawTextBlock(ctx, titleText, boxX + 40, titleY, boxW - 80, 48, 2);
 
   // Preço De / Por
-  const price = parseCurrencyInput(priceInput);
-  const originalPrice = parseCurrencyInput(originalPriceInput);
   const priceY = titleY + (isFeed ? 116 : 140);
 
   if (discount.valid) {
@@ -1333,7 +1341,7 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple') {
     ctx.fillStyle = primaryColor;
     ctx.font = '800 62px "Manrope", Arial, sans-serif';
     ctx.fillText(`Por: ${formatPrice(price)}`, boxX + 40, priceY + 46);
-  } else if (price) {
+  } else if (Number.isFinite(price) && price > 0) {
     ctx.fillStyle = primaryColor;
     ctx.font = '800 64px "Manrope", Arial, sans-serif';
     ctx.fillText(formatPrice(price), boxX + 40, priceY + 36);
@@ -1344,7 +1352,7 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple') {
   }
 
   // Cupom
-  const coupon = cleanText(couponInput.value);
+  const coupon = customProduct ? String(customProduct.coupon || '').trim() : cleanText(couponInput.value);
   if (coupon) {
     const couponY = isFeed ? boxY + boxH - 68 : priceY + 76;
     ctx.fillStyle = isDarkTheme ? '#352514' : '#fff4e5';
@@ -1856,6 +1864,57 @@ pausePilotoBtn?.addEventListener('click', async () => {
   }
 });
 
+// Botão Padronizar Artes da Fila (Feed 1:1)
+const btnFixQueueArts = $('#btn-fix-queue-arts');
+btnFixQueueArts?.addEventListener('click', async () => {
+  if (!queueStateCache?.items || queueStateCache.items.length === 0) {
+    showToast('A fila está vazia. Adicione produtos primeiro.');
+    return;
+  }
+  btnFixQueueArts.disabled = true;
+  const originalHtml = btnFixQueueArts.innerHTML;
+  btnFixQueueArts.textContent = 'Padronizando artes...';
+
+  try {
+    const items = queueStateCache.items;
+    let updatedCount = 0;
+
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (!it.image || it.image.startsWith('http')) {
+        btnFixQueueArts.textContent = `🎨 Gerando arte ${i + 1}/${items.length}...`;
+        try {
+          const canvas = await generateOfferCanvas('feed', it.theme || currentArtTheme, {
+            title: it.title,
+            price: it.price,
+            originalPrice: it.originalPrice,
+            coupon: it.coupon,
+            store: it.store,
+            image: it.image
+          });
+          const artImage = canvas.toDataURL('image/jpeg', 0.90);
+          await postJson('/api/queue/update-image', {
+            id: it.id,
+            image: artImage,
+            userId: getActiveUserId()
+          });
+          updatedCount++;
+        } catch (e) {
+          console.warn('Erro ao padronizar arte:', it.title, e);
+        }
+      }
+    }
+
+    showToast(`🎉 ${updatedCount} ofertas tiveram suas artes padronizadas no formato 1:1 Oficial!`);
+    await refreshQueueStatus();
+  } catch (err) {
+    showToast('Erro ao padronizar artes: ' + err.message, true);
+  } finally {
+    btnFixQueueArts.disabled = false;
+    btnFixQueueArts.innerHTML = originalHtml;
+  }
+});
+
 // Botão Limpar Fila
 clearPilotoBtn?.addEventListener('click', async () => {
   if (!confirm('Deseja realmente limpar todas as ofertas que estão na fila?')) return;
@@ -1946,6 +2005,22 @@ bulkImportBtn?.addEventListener('click', async () => {
       const data = await res.json();
       if (data.ok && data.product) {
         const p = data.product;
+        bulkProgressText.textContent = `🎨 Gerando Arte 1:1 do produto ${i + 1} de ${rawLines.length}...`;
+        let artImage = p.image || '';
+        try {
+          const canvas = await generateOfferCanvas('feed', currentArtTheme, {
+            title: p.title || 'Oferta imperdível',
+            store: p.store || 'Oferta',
+            image: p.image || '',
+            price: p.price,
+            originalPrice: p.originalPrice,
+            coupon: p.coupon || ''
+          });
+          artImage = canvas.toDataURL('image/jpeg', 0.90);
+        } catch (e) {
+          console.warn('Erro ao gerar arte Feed 1:1 no bulk import, usando original:', e);
+        }
+
         await postJson('/api/queue/add', {
           userId: getActiveUserId(),
           title: p.title || 'Oferta imperdível',
@@ -1954,7 +2029,7 @@ bulkImportBtn?.addEventListener('click', async () => {
           coupon: p.coupon || '',
           highlights: p.highlights || [],
           affiliateUrl: p.affiliateUrl || link,
-          image: p.image || '',
+          image: artImage,
           store: p.store || 'Oferta',
           theme: currentArtTheme
         });

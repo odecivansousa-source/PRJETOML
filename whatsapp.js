@@ -340,11 +340,29 @@ async function sendToWhatsAppGroup(payload) {
     if (buffer) {
       try {
         const sharp = require('sharp');
-        buffer = await sharp(buffer)
-          .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-          .toBuffer();
+        const meta = await sharp(buffer).metadata();
+        const width = meta.width || 1080;
+        const height = meta.height || 1080;
+        const isSquare = Math.abs(width - height) <= 15;
+
+        if (!isSquare) {
+          // Enquadra perfeitamente no padrão 1:1 quadrado (1080x1080) com fundo limpo
+          const targetDim = Math.max(1080, width, height);
+          buffer = await sharp(buffer)
+            .resize(targetDim, targetDim, {
+              fit: 'contain',
+              background: { r: 255, g: 255, b: 255, alpha: 1 }
+            })
+            .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+            .toBuffer();
+          console.log(`[WhatsApp] Foto convertida para padrão 1:1 quadrado (${targetDim}x${targetDim}).`);
+        } else {
+          buffer = await sharp(buffer)
+            .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+            .toBuffer();
+        }
       } catch (err) {
-        console.warn('[WhatsApp] Conversão JPEG opcional ignorada:', err.message);
+        console.warn('[WhatsApp] Conversão/enquadramento de imagem ignorado:', err.message);
       }
 
       await sock.sendMessage(cleanTarget, {

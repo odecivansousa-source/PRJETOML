@@ -428,6 +428,22 @@ async function addQueueItem(item, userId = 'default') {
   }
 }
 
+async function updateQueueItem(id, updates, userId = 'default') {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    let query = sb.from('linkpronto_queue').update(updates).eq('id', id);
+    if (userId && userId !== 'default') {
+      query = query.eq('user_id', userId);
+    }
+    const { error } = await query;
+    return !error;
+  } catch (e) {
+    console.warn('[Supabase] Erro ao atualizar item da fila:', e.message);
+    return false;
+  }
+}
+
 async function removeQueueItem(id, userId = 'default') {
   if (!supabase) return;
   try {
@@ -563,6 +579,7 @@ module.exports = {
   updateSettings,
   fetchQueue,
   addQueueItem,
+  updateQueueItem,
   removeQueueItem,
   clearQueueItems,
   markQueueItemProcessed,

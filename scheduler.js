@@ -244,6 +244,19 @@ async function addItem(offer) {
   return { ok: true, item: newItem, queueCount: queueState.items.length };
 }
 
+async function updateItemImage(id, newImage) {
+  const item = queueState.items.find(i => i.id === id);
+  if (item) {
+    item.image = newImage;
+    saveQueueLocal();
+    if (db) {
+      db.updateQueueItem(id, { image: newImage }).catch(() => {});
+    }
+    return { ok: true };
+  }
+  return { ok: false, error: 'Item não encontrado na fila.' };
+}
+
 async function removeItem(id) {
   queueState.items = queueState.items.filter(item => item.id !== id);
   saveQueueLocal();
@@ -390,6 +403,7 @@ loadQueue();
 module.exports = {
   getStatus,
   addItem,
+  updateItemImage,
   removeItem,
   clearQueue,
   updateConfig,
