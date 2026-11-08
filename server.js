@@ -1421,6 +1421,15 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (requestUrl.pathname === '/favicon.ico') {
+    const iconPath = path.join(ROOT, 'favicon.svg');
+    if (fs.existsSync(iconPath)) {
+      response.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=86400' });
+      fs.createReadStream(iconPath).pipe(response);
+      return;
+    }
+  }
+
   const requested = requestUrl.pathname === '/' ? '/index.html' : decodeURIComponent(requestUrl.pathname);
   if (requested.split('/').some(part => part.startsWith('.'))) {
     response.writeHead(404).end('Not found');
