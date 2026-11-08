@@ -1031,9 +1031,9 @@ whatsappQuickButton?.addEventListener('click', async () => {
     const message = buildMessage();
 
     if (isWhatsAppSocketConnected) {
-      // DISPARO 100% AUTOMÁTICO VIA SOCKET EM 1 CLIQUE
+      // DISPARO 100% AUTOMÁTICO VIA SOCKET EM 1 CLIQUE COM FOTO LIMPA E PROFISSIONAL (PADRÃO TELEGRAM)
       const res = await postJson('/api/whatsapp/send', {
-        image: dataUrl,
+        image: product?.image || dataUrl,
         caption: message
       });
       $('#share-status').textContent = res.message || 'Oferta enviada no grupo do WhatsApp!';
@@ -1813,7 +1813,8 @@ addToQueueBtn?.addEventListener('click', async () => {
       coupon: cleanText(couponInput.value),
       highlights: product.highlights || [],
       affiliateUrl: product.affiliateUrl || '',
-      image: artImage,
+      image: product.image || artImage,
+      artImage: artImage,
       store: product.store || 'Oferta',
       theme: currentArtTheme
     };
@@ -1861,57 +1862,6 @@ pausePilotoBtn?.addEventListener('click', async () => {
     showToast('Erro ao pausar: ' + err.message, true);
   } finally {
     pausePilotoBtn.disabled = false;
-  }
-});
-
-// Botão Padronizar Artes da Fila (Feed 1:1)
-const btnFixQueueArts = $('#btn-fix-queue-arts');
-btnFixQueueArts?.addEventListener('click', async () => {
-  if (!queueStateCache?.items || queueStateCache.items.length === 0) {
-    showToast('A fila está vazia. Adicione produtos primeiro.');
-    return;
-  }
-  btnFixQueueArts.disabled = true;
-  const originalHtml = btnFixQueueArts.innerHTML;
-  btnFixQueueArts.textContent = 'Padronizando artes...';
-
-  try {
-    const items = queueStateCache.items;
-    let updatedCount = 0;
-
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
-      if (!it.image || it.image.startsWith('http')) {
-        btnFixQueueArts.textContent = `🎨 Gerando arte ${i + 1}/${items.length}...`;
-        try {
-          const canvas = await generateOfferCanvas('feed', it.theme || currentArtTheme, {
-            title: it.title,
-            price: it.price,
-            originalPrice: it.originalPrice,
-            coupon: it.coupon,
-            store: it.store,
-            image: it.image
-          });
-          const artImage = canvas.toDataURL('image/jpeg', 0.90);
-          await postJson('/api/queue/update-image', {
-            id: it.id,
-            image: artImage,
-            userId: getActiveUserId()
-          });
-          updatedCount++;
-        } catch (e) {
-          console.warn('Erro ao padronizar arte:', it.title, e);
-        }
-      }
-    }
-
-    showToast(`🎉 ${updatedCount} ofertas tiveram suas artes padronizadas no formato 1:1 Oficial!`);
-    await refreshQueueStatus();
-  } catch (err) {
-    showToast('Erro ao padronizar artes: ' + err.message, true);
-  } finally {
-    btnFixQueueArts.disabled = false;
-    btnFixQueueArts.innerHTML = originalHtml;
   }
 });
 
@@ -2005,22 +1955,6 @@ bulkImportBtn?.addEventListener('click', async () => {
       const data = await res.json();
       if (data.ok && data.product) {
         const p = data.product;
-        bulkProgressText.textContent = `🎨 Gerando Arte 1:1 do produto ${i + 1} de ${rawLines.length}...`;
-        let artImage = p.image || '';
-        try {
-          const canvas = await generateOfferCanvas('feed', currentArtTheme, {
-            title: p.title || 'Oferta imperdível',
-            store: p.store || 'Oferta',
-            image: p.image || '',
-            price: p.price,
-            originalPrice: p.originalPrice,
-            coupon: p.coupon || ''
-          });
-          artImage = canvas.toDataURL('image/jpeg', 0.90);
-        } catch (e) {
-          console.warn('Erro ao gerar arte Feed 1:1 no bulk import, usando original:', e);
-        }
-
         await postJson('/api/queue/add', {
           userId: getActiveUserId(),
           title: p.title || 'Oferta imperdível',
@@ -2029,7 +1963,7 @@ bulkImportBtn?.addEventListener('click', async () => {
           coupon: p.coupon || '',
           highlights: p.highlights || [],
           affiliateUrl: p.affiliateUrl || link,
-          image: artImage,
+          image: p.image || '',
           store: p.store || 'Oferta',
           theme: currentArtTheme
         });

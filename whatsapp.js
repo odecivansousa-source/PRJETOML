@@ -326,7 +326,16 @@ async function sendToWhatsAppGroup(payload) {
     } else if (Buffer.isBuffer(image)) {
       buffer = image;
     } else if (typeof image === 'string' && /^https?:\/\//i.test(image)) {
-      const res = await fetch(image, {
+      // Garante imagem original e limpa em alta definição do Mercado Livre (-O) e Shopee
+      let cleanUrl = image;
+      if (cleanUrl.includes('mlstatic.com')) {
+        cleanUrl = cleanUrl.replace(/-[PI]\.(webp|jpg|jpeg)$/i, '-O.$1');
+      }
+      if (cleanUrl.includes('susercontent.com') && cleanUrl.includes('_tn')) {
+        cleanUrl = cleanUrl.replace(/_tn(\.[a-z0-9]+)$/i, '$1');
+      }
+
+      const res = await fetch(cleanUrl, {
         signal: AbortSignal.timeout(12000),
         headers: {
           'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
@@ -340,29 +349,12 @@ async function sendToWhatsAppGroup(payload) {
     if (buffer) {
       try {
         const sharp = require('sharp');
-        const meta = await sharp(buffer).metadata();
-        const width = meta.width || 1080;
-        const height = meta.height || 1080;
-        const isSquare = Math.abs(width - height) <= 15;
-
-        if (!isSquare) {
-          // Enquadra perfeitamente no padrão 1:1 quadrado (1080x1080) com fundo limpo
-          const targetDim = Math.max(1080, width, height);
-          buffer = await sharp(buffer)
-            .resize(targetDim, targetDim, {
-              fit: 'contain',
-              background: { r: 255, g: 255, b: 255, alpha: 1 }
-            })
-            .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-            .toBuffer();
-          console.log(`[WhatsApp] Foto convertida para padrão 1:1 quadrado (${targetDim}x${targetDim}).`);
-        } else {
-          buffer = await sharp(buffer)
-            .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-            .toBuffer();
-        }
+        // Converte diretamente para JPEG nítido em alta qualidade (95%) preservando a foto original limpa do produto
+        buffer = await sharp(buffer)
+          .jpeg({ quality: 95, mozjpeg: true })
+          .toBuffer();
       } catch (err) {
-        console.warn('[WhatsApp] Conversão/enquadramento de imagem ignorado:', err.message);
+        console.warn('[WhatsApp] Conversão JPEG ignorada:', err.message);
       }
 
       await sock.sendMessage(cleanTarget, {
