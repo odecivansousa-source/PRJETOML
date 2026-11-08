@@ -1186,7 +1186,35 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple', customProd
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  // Cores por tema
+  // MODO WHATSAPP / TELEGRAM / FEED (1:1):
+  // Foto limpa, real e em altíssima resolução do produto (Padrão Telegram / E-commerce Oficial)
+  // Sem textos sobrepostos, sem molduras pesadas e sem preços desenhados na foto.
+  if (isFeed) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    const productImgSrc = customProduct?.image || product?.image;
+    const image = await loadImage(productImgSrc);
+    if (image) {
+      const padding = 36;
+      const maxW = width - (padding * 2);
+      const maxH = height - (padding * 2);
+      const scale = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight);
+      const w = image.naturalWidth * scale;
+      const h = image.naturalHeight * scale;
+      ctx.drawImage(image, (width - w) / 2, (height - h) / 2, w, h);
+    } else {
+      ctx.fillStyle = '#f8f9fa';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#8d86a6';
+      ctx.textAlign = 'center';
+      ctx.font = '600 32px "DM Sans", Arial, sans-serif';
+      ctx.fillText('Foto do produto no anúncio', width / 2, height / 2);
+    }
+    return canvas;
+  }
+
+  // MODO STORY (9:16) PARA INSTAGRAM:
   let primaryColor = '#7150ed';
   let primaryDark = '#5c3bd1';
   let bgGradientStart = '#f5efff';
@@ -1224,42 +1252,42 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple', customProd
   // Topo: Marca e Badge da Loja
   ctx.fillStyle = primaryColor;
   ctx.beginPath();
-  ctx.roundRect(isFeed ? 60 : 72, isFeed ? 50 : 76, 68, 68, 20);
+  ctx.roundRect(72, 76, 68, 68, 20);
   ctx.fill();
 
   ctx.fillStyle = '#ffffff';
   ctx.font = '800 36px "Manrope", Arial, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('M', isFeed ? 94 : 106, isFeed ? 98 : 124);
+  ctx.fillText('M', 106, 124);
 
   ctx.textAlign = 'left';
   ctx.fillStyle = textDark;
   ctx.font = '800 28px "Manrope", Arial, sans-serif';
-  ctx.fillText('MOSSORÓ OFERTAS', isFeed ? 144 : 158, isFeed ? 80 : 108);
+  ctx.fillText('MOSSORÓ OFERTAS', 158, 108);
 
   ctx.fillStyle = isDarkTheme ? '#a59ec2' : '#7f7b8f';
   ctx.font = '600 17px "DM Sans", Arial, sans-serif';
-  ctx.fillText('ACHADOS & PREÇOS BAIXOS', isFeed ? 144 : 158, isFeed ? 106 : 136);
+  ctx.fillText('ACHADOS & PREÇOS BAIXOS', 158, 136);
 
   // Badge da Loja
   const storeName = (customProduct?.store || product?.store || 'OFERTA').toLocaleUpperCase('pt-BR');
-  const storeBadgeX = width - (isFeed ? 320 : 340);
+  const storeBadgeX = width - 340;
   ctx.fillStyle = primaryColor;
   ctx.beginPath();
-  ctx.roundRect(storeBadgeX, isFeed ? 54 : 80, isFeed ? 260 : 268, 48, 24);
+  ctx.roundRect(storeBadgeX, 80, 268, 48, 24);
   ctx.fill();
 
   ctx.fillStyle = '#ffffff';
   ctx.font = '700 18px "Manrope", Arial, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`🔥 ${storeName}`, storeBadgeX + (isFeed ? 130 : 134), isFeed ? 85 : 111);
+  ctx.fillText(`🔥 ${storeName}`, storeBadgeX + 134, 111);
   ctx.textAlign = 'left';
 
   // Caixa Central do Produto
-  const boxX = isFeed ? 60 : 60;
-  const boxY = isFeed ? 140 : 200;
+  const boxX = 60;
+  const boxY = 200;
   const boxW = width - (boxX * 2);
-  const boxH = isFeed ? 740 : 1050;
+  const boxH = 1050;
 
   ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
   ctx.shadowBlur = 30;
@@ -1279,7 +1307,7 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple', customProd
     x: boxX + 40,
     y: boxY + 36,
     w: boxW - 80,
-    h: isFeed ? 420 : 540
+    h: 540
   };
 
   const productImgSrc = customProduct?.image || product?.image;
@@ -1310,7 +1338,7 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple', customProd
         : { valid: false, percent: 0 })
     : calculateDiscount();
 
-  // Selo de Desconto no canto superior da imagem (% OFF)
+  // Selo de Desconto
   if (discount.valid) {
     ctx.fillStyle = '#ff4757';
     ctx.beginPath();
@@ -1331,7 +1359,7 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple', customProd
   drawTextBlock(ctx, titleText, boxX + 40, titleY, boxW - 80, 48, 2);
 
   // Preço De / Por
-  const priceY = titleY + (isFeed ? 116 : 140);
+  const priceY = titleY + 140;
 
   if (discount.valid) {
     ctx.fillStyle = isDarkTheme ? '#9b94b0' : '#8f8a9e';
@@ -1354,7 +1382,7 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple', customProd
   // Cupom
   const coupon = customProduct ? String(customProduct.coupon || '').trim() : cleanText(couponInput.value);
   if (coupon) {
-    const couponY = isFeed ? boxY + boxH - 68 : priceY + 76;
+    const couponY = priceY + 76;
     ctx.fillStyle = isDarkTheme ? '#352514' : '#fff4e5';
     ctx.beginPath();
     ctx.roundRect(boxX + 40, couponY, boxW - 80, 52, 16);
@@ -1364,43 +1392,26 @@ async function generateOfferCanvas(format = 'feed', theme = 'purple', customProd
     ctx.fillText(`🎟️ CUPOM: ${coupon}`, boxX + 64, couponY + 34);
   }
 
-  // Rodapé ou Adesivo do Story
-  if (!isFeed) {
-    // Modo Story (9:16)
-    ctx.fillStyle = cardBg;
-    ctx.beginPath();
-    ctx.roundRect(72, 1330, width - 144, 175, 34);
-    ctx.fill();
-    ctx.strokeStyle = isDarkTheme ? '#37324e' : '#dfd6f3';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  // Rodapé do Story (9:16)
+  ctx.fillStyle = cardBg;
+  ctx.beginPath();
+  ctx.roundRect(72, 1330, width - 144, 175, 34);
+  ctx.fill();
+  ctx.strokeStyle = isDarkTheme ? '#37324e' : '#dfd6f3';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-    ctx.fillStyle = textDark;
-    ctx.font = '800 36px "Manrope", Arial, sans-serif';
-    ctx.fillText('Gostou? Toque no adesivo de link 👆', 120, 1395);
+  ctx.fillStyle = textDark;
+  ctx.font = '800 36px "Manrope", Arial, sans-serif';
+  ctx.fillText('Gostou? Toque no adesivo de link 👆', 120, 1395);
 
-    ctx.fillStyle = isDarkTheme ? '#9b94b2' : '#736f82';
-    ctx.font = '500 26px "DM Sans", Arial, sans-serif';
-    ctx.fillText('e vá direto para a página oficial do produto.', 120, 1445);
+  ctx.fillStyle = isDarkTheme ? '#9b94b2' : '#736f82';
+  ctx.font = '500 26px "DM Sans", Arial, sans-serif';
+  ctx.fillText('e vá direto para a página oficial do produto.', 120, 1445);
 
-    ctx.fillStyle = isDarkTheme ? '#6d6785' : '#a6a1b2';
-    ctx.font = '600 20px "DM Sans", Arial, sans-serif';
-    ctx.fillText('MOSSORÓ OFERTAS • ACHADOS VERIFICADOS', 72, 1860);
-  } else {
-    // Modo Feed / WhatsApp (1:1)
-    const footerY = height - 100;
-    ctx.fillStyle = cardBg;
-    ctx.beginPath();
-    ctx.roundRect(60, footerY, width - 120, 68, 20);
-    ctx.fill();
-    ctx.strokeStyle = isDarkTheme ? '#37324e' : '#dfd6f3';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = primaryColor;
-    ctx.font = '800 22px "Manrope", Arial, sans-serif';
-    ctx.fillText('🛒 Compre pelo link oficial enviado na mensagem!', 100, footerY + 42);
-  }
+  ctx.fillStyle = isDarkTheme ? '#6d6785' : '#a6a1b2';
+  ctx.font = '600 20px "DM Sans", Arial, sans-serif';
+  ctx.fillText('MOSSORÓ OFERTAS • ACHADOS VERIFICADOS', 72, 1860);
 
   return canvas;
 }
