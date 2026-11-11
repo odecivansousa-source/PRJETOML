@@ -43,6 +43,13 @@ try {
   console.warn('Módulo Scheduler indisponível:', e.message);
 }
 
+let shopee;
+try {
+  shopee = require('./shopee');
+} catch (e) {
+  console.warn('Módulo Shopee API indisponível:', e.message);
+}
+
 let db;
 try {
   db = require('./supabase');
@@ -674,6 +681,20 @@ async function previewProduct(raw) {
   const host = source.hostname.toLowerCase();
   const isShopee = isShopeeHost(host);
   const isMeli = isMeliHost(host);
+
+  // 1. INTEGRAÇÃO OFICIAL SHOPEE AFFILIATE OPEN API (GraphQL)
+  // Resolve link de afiliado oficial encurtado, dados de catálogo e foto em alta definição
+  if (isShopee && shopee) {
+    try {
+      const shopeeData = await shopee.resolveShopeeProduct(source.toString());
+      if (shopeeData.ok) {
+        return shopeeData;
+      }
+    } catch (err) {
+      console.warn('[Shopee API] Fallback para leitura web:', err.message);
+    }
+  }
+
   const finalAffiliate = isShopee ? ensureShopeeAffiliate(source.toString()) : source.toString();
 
   try {

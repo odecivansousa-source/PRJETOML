@@ -331,7 +331,7 @@ async function sendToWhatsAppGroup(payload) {
       if (cleanUrl.includes('mlstatic.com')) {
         cleanUrl = cleanUrl.replace(/-[PI]\.(webp|jpg|jpeg)$/i, '-O.$1');
       }
-      if (cleanUrl.includes('susercontent.com') && cleanUrl.includes('_tn')) {
+      if ((cleanUrl.includes('susercontent.com') || cleanUrl.includes('cf.shopee.')) && cleanUrl.includes('_tn')) {
         cleanUrl = cleanUrl.replace(/_tn(\.[a-z0-9]+)$/i, '$1');
       }
 

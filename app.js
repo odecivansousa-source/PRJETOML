@@ -1015,7 +1015,39 @@ whatsappDisconnectBtn?.addEventListener('click', async () => {
   }
 });
 
-// Envio para WhatsApp (1 Clique Real se Conectado / Fallback se não conectado)
+// Helper para obter Blob da foto original limpa do produto (Padrão Telegram - sem molduras de flyer)
+async function getCleanProductBlob(imageUrl) {
+  if (!imageUrl) return null;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || img.width;
+        c.height = img.naturalHeight || img.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        c.toBlob((blob) => resolve(blob), 'image/png');
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = async () => {
+      try {
+        const pRes = await fetch(apiUrl(`/api/image?url=${encodeURIComponent(imageUrl)}`));
+        if (pRes.ok) {
+          const blob = await pRes.blob();
+          return resolve(blob);
+        }
+      } catch (e) {}
+      resolve(null);
+    };
+    img.src = imageUrl.startsWith('data:') ? imageUrl : apiUrl(`/api/image?url=${encodeURIComponent(imageUrl)}`);
+  });
+}
+
+// Envio para WhatsApp (1 Clique Real se Conectado / Fallback se não conectado) - PADRÃO TELEGRAM
 whatsappQuickButton?.addEventListener('click', async () => {
   if (!checkAuthAccess()) return;
   if (!product) return;
@@ -1025,31 +1057,38 @@ whatsappQuickButton?.addEventListener('click', async () => {
   button.textContent = 'Enviando no WhatsApp...';
 
   try {
-    // 1. Gera a arte visual 1:1 quadrada em JPEG de alta qualidade
-    const canvas = await generateOfferCanvas('feed', currentArtTheme);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const cleanImageUrl = product?.image || '';
     const message = buildMessage();
 
     if (isWhatsAppSocketConnected) {
       // DISPARO 100% AUTOMÁTICO VIA SOCKET EM 1 CLIQUE COM FOTO LIMPA E PROFISSIONAL (PADRÃO TELEGRAM)
       const res = await postJson('/api/whatsapp/send', {
-        image: product?.image || dataUrl,
+        image: cleanImageUrl,
         caption: message
       });
       $('#share-status').textContent = res.message || 'Oferta enviada no grupo do WhatsApp!';
       showToast('🔥 ' + (res.message || 'Oferta enviada com sucesso no grupo do WhatsApp!'));
     } else {
-      // MODO MANUAL: Copia a foto para a área de transferência e abre o grupo
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      if (navigator.clipboard && window.ClipboardItem && blob) {
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      // MODO MANUAL: Copia a foto limpa e profissional do produto (Padrão Telegram) para a área de transferência
+      let copiedPhoto = false;
+      if (cleanImageUrl) {
+        const blob = await getCleanProductBlob(cleanImageUrl);
+        if (navigator.clipboard && window.ClipboardItem && blob) {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          copiedPhoto = true;
+        }
       }
+
       const key = getUserStorageKey(WHATSAPP_KEY);
       const targetGroup = localStorage.getItem(key) || (getActiveUserId() === 'default' ? DEFAULT_WHATSAPP_GROUP : '');
       if (targetGroup) {
         window.open(targetGroup, '_blank');
-        $('#share-status').textContent = 'Foto copiada! No WhatsApp, aperte Ctrl + V para colar a foto.';
-        showToast('📸 Foto copiada! Aperte Ctrl + V no grupo para colar a imagem com a arte.');
+        $('#share-status').textContent = copiedPhoto
+          ? 'Foto do produto copiada! No WhatsApp, aperte Ctrl + V para colar a foto limpa e envie com a legenda.'
+          : 'Abrindo o grupo do WhatsApp...';
+        showToast(copiedPhoto
+          ? '📸 Foto profissional limpa copiada! Aperte Ctrl + V no WhatsApp.'
+          : '⚡ Abrindo WhatsApp...');
       } else {
         showToast('⚠️ Configure o link do seu grupo do WhatsApp na aba "WhatsApp & Canais" primeiro!', true);
         const section = $('#whatsapp-section');
@@ -1824,7 +1863,7 @@ addToQueueBtn?.addEventListener('click', async () => {
       coupon: cleanText(couponInput.value),
       highlights: product.highlights || [],
       affiliateUrl: product.affiliateUrl || '',
-      image: product.image || artImage,
+      image: product.image || '', // FOTO LIMPA ORIGINAL DO PRODUTO (PADRÃO TELEGRAM)
       artImage: artImage,
       store: product.store || 'Oferta',
       theme: currentArtTheme
