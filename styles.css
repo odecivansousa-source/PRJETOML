@@ -52,34 +52,7 @@
   font-weight: 700 !important;
 }
 
-:root {
-  --ink: #1e1b29;
-  --ink-secondary: #4a4756;
-  --muted: #6f6b7d;
-  --soft: #9a96a8;
-  --line: #e6e3ed;
-  --line-light: #f0edf5;
-  --paper: #ffffff;
-  --canvas: #f8f7fb;
-  --card-bg: #ffffff;
-  --purple: #7150ed;
-  --purple-dark: #5c3bd1;
-  --purple-light: #f2eeff;
-  --purple-glow: rgba(113, 80, 237, 0.15);
-  --green: #15803d;
-  --green-light: #ecfdf5;
-  --green-border: #bbf7d0;
-  --amber: #b45309;
-  --amber-light: #fffbeb;
-  --amber-border: #fde68a;
-  --red: #b91c1c;
-  --red-light: #fef2f2;
-  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-/* TEMA ESCURO (DARK MODE) */
-body.dark-mode {
+:root, body.dark-mode {
   --ink: #f3f1fa;
   --ink-secondary: #c2bece;
   --muted: #9590a5;
@@ -89,13 +62,45 @@ body.dark-mode {
   --paper: #181524;
   --canvas: #110e1c;
   --card-bg: #181524;
+  --purple: #7150ed;
+  --purple-dark: #5c3bd1;
   --purple-light: #282144;
   --purple-glow: rgba(113, 80, 237, 0.3);
+  --green: #10b981;
   --green-light: #0d281a;
   --green-border: #134e2f;
+  --amber: #f59e0b;
   --amber-light: #2e1d05;
   --amber-border: #5b3706;
+  --red: #ef4444;
   --red-light: #2d0e0e;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* TEMA CLARO SUAVE (DESCANSO VISUAL / EYE-CARE - SEM BRANCO AGRESSIVO) */
+body.light-mode {
+  --ink: #1f1c2b;
+  --ink-secondary: #4d495c;
+  --muted: #726d82;
+  --soft: #9c97ad;
+  --line: #d8d3e3;
+  --line-light: #e5e1ee;
+  --paper: #f4f0f8;
+  --canvas: #e8e4f0;
+  --card-bg: #f4f0f8;
+  --purple: #7150ed;
+  --purple-dark: #5c3bd1;
+  --purple-light: #eae4fc;
+  --purple-glow: rgba(113, 80, 237, 0.15);
+  --green: #15803d;
+  --green-light: #e8f9ee;
+  --green-border: #bbf7d0;
+  --amber: #b45309;
+  --amber-light: #fff8e6;
+  --amber-border: #fde68a;
+  --red: #b91c1c;
+  --red-light: #feeeee;
 }
 
 * { box-sizing: border-box; }
@@ -299,7 +304,7 @@ main {
 .topbar {
   height: 64px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(24, 21, 36, 0.85);
   backdrop-filter: blur(12px);
   display: flex;
   justify-content: space-between;
@@ -310,8 +315,8 @@ main {
   z-index: 5;
 }
 
-body.dark-mode .topbar {
-  background: rgba(24, 21, 36, 0.85);
+body.light-mode .topbar {
+  background: rgba(244, 240, 248, 0.85);
 }
 
 .breadcrumbs {
