@@ -1278,14 +1278,36 @@ const server = http.createServer(async (request, response) => {
     try {
       const keyword = requestUrl.searchParams.get('keyword') || '';
       const page = parseInt(requestUrl.searchParams.get('page') || '1');
-      const limit = parseInt(requestUrl.searchParams.get('limit') || '20');
+      const limit = parseInt(requestUrl.searchParams.get('limit') || '24');
+      const sortType = parseInt(requestUrl.searchParams.get('sortType') || '3'); // 3: Mais Vendidos por padrão
+      const listType = parseInt(requestUrl.searchParams.get('listType') || '0');
+      const minDiscount = parseInt(requestUrl.searchParams.get('minDiscount') || '0');
 
       if (!shopee) {
         return sendJson(response, 503, { ok: false, error: 'Módulo Shopee API indisponível.' });
       }
 
-      const offers = await shopee.getTopShopeeOffers(limit, page, keyword);
-      return sendJson(response, 200, { ok: true, offers, total: offers.length });
+      let offers = await shopee.getTopShopeeOffers(limit, page, keyword, sortType, listType);
+
+      // Se o usuário selecionou filtro de Ofertas do Dia / Super Descontos
+      if (minDiscount > 0) {
+        offers = offers.filter(o => (o.discount || 0) >= minDiscount);
+      }
+
+      // Ordenação extra no backend se for Ofertas do Dia (ordena por maior desconto)
+      if (sortType === 5) {
+        offers.sort((a, b) => (b.discount || 0) - (a.discount || 0));
+      }
+
+      return sendJson(response, 200, {
+        ok: true,
+        offers,
+        total: offers.length,
+        page,
+        limit,
+        sortType,
+        keyword
+      });
     } catch (err) {
       return sendJson(response, 500, { ok: false, error: err.message });
     }

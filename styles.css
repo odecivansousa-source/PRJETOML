@@ -3500,3 +3500,169 @@ body.dark-mode .whatsapp-qr-box {
   letter-spacing: 0.5px;
 }
 
+/* ============================================================================
+   RADAR DE OFERTAS AVANÇADO (DEPARTAMENTOS, MAIS VENDIDOS, OFERTAS DO DIA)
+   ============================================================================ */
+.radar-limit-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.radar-select {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  height: 38px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.radar-tabs-wrapper {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radar-filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.radar-sort-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.radar-tab {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-secondary);
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.radar-tab:hover {
+  border-color: var(--purple);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.radar-tab.active {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.radar-quick-bar {
+  margin-top: 18px;
+  padding: 10px 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.radar-quick-info {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.radar-quick-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-radar-select-all {
+  background: var(--purple-light);
+  border: 1px solid var(--purple);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-radar-select-all:hover {
+  background: var(--purple);
+  color: #fff;
+}
+
+.btn-radar-unselect-all {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-radar-unselect-all:hover {
+  color: var(--ink);
+  border-color: var(--ink-secondary);
+}
+
+.radar-load-more-box {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.btn-load-more {
+  background: var(--paper);
+  border: 1.5px solid var(--purple);
+  color: var(--ink);
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-load-more:hover {
+  background: var(--purple);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.25);
+}
+
+.btn-load-more:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+

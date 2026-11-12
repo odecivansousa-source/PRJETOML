@@ -294,19 +294,40 @@ async function resolveShopeeProduct(rawUrl) {
 
 /**
  * Minera as melhores ofertas e produtos com maiores comissões da Shopee
- * @param {number} limit Quantidade de ofertas (padrão 20)
+ * @param {number} limit Quantidade de ofertas (24, 48, 96...)
  * @param {number} page Página da busca
- * @param {string} keyword Palavra-chave opcional para filtrar por nicho
+ * @param {string} keyword Palavra-chave ou departamento
+ * @param {number} sortType 3: Mais Vendidos, 2: Maior Comissão, 1: Novidades, 5: Relevância
+ * @param {number} listType 0: Todas, 1: Shopee Choice
  */
-async function getTopShopeeOffers(limit = 20, page = 1, keyword = '') {
+async function getTopShopeeOffers(limit = 24, page = 1, keyword = '', sortType = 3, listType = 0) {
   try {
     const cleanKw = String(keyword || '').trim();
     const keywordArg = cleanKw ? `, keyword: "${cleanKw.replace(/"/g, '')}"` : '';
+    const sortArg = sortType ? `, sortType: ${parseInt(sortType)}` : '';
+    const listArg = listType ? `, listType: ${parseInt(listType)}` : '';
     const safePage = Math.max(1, parseInt(page) || 1);
-    const safeLimit = Math.min(50, Math.max(1, parseInt(limit) || 20));
+    const targetLimit = Math.min(100, Math.max(6, parseInt(limit) || 24));
+
+    // Se o usuário pedir mais de 50 ofertas (ex: 60 ou 96), fazemos 2 requisições em paralelo
+    if (targetLimit > 50) {
+      const halfLimit = Math.ceil(targetLimit / 2);
+      const [res1, res2] = await Promise.all([
+        getTopShopeeOffers(halfLimit, safePage * 2 - 1, keyword, sortType, listType),
+        getTopShopeeOffers(halfLimit, safePage * 2, keyword, sortType, listType)
+      ]);
+      const combined = [...res1, ...res2];
+      // Remove duplicatas por itemId
+      const seen = new Set();
+      return combined.filter(item => {
+        if (!item.itemId || seen.has(item.itemId)) return false;
+        seen.add(item.itemId);
+        return true;
+      });
+    }
 
     const query = `{
-      productOfferV2(page: ${safePage}, limit: ${safeLimit}${keywordArg}) {
+      productOfferV2(page: ${safePage}, limit: ${targetLimit}${keywordArg}${sortArg}${listArg}) {
         nodes {
           itemId
           shopId
@@ -319,6 +340,8 @@ async function getTopShopeeOffers(limit = 20, page = 1, keyword = '') {
           offerLink
           commissionRate
           shopName
+          sales
+          ratingStar
         }
       }
     }`;
@@ -341,9 +364,22 @@ async function getTopShopeeOffers(limit = 20, page = 1, keyword = '') {
       }
 
       const commissionFloat = Number(node.commissionRate || 0);
-      const commissionPercent = commissionFloat > 0 ? `${(commissionFloat * 100).toFixed(0)}%` : '10%';
+      const commissionPercent = commissionFloat > 0 ? `${(commissionFloat * 100).toFixed(0)}%` : '12%';
       const cleanImg = cleanShopeeImageUrl(node.imageUrl);
       const affLink = node.offerLink || node.productLink || '';
+      const salesCount = Number(node.sales || 0);
+      const rating = Number(node.ratingStar || 0);
+
+      const highlights = [];
+      if (salesCount > 50) {
+        highlights.push(`🔥 +${salesCount >= 1000 ? (salesCount / 1000).toFixed(1) + 'k' : salesCount} vendidos`);
+      }
+      if (discount > 0) {
+        highlights.push(`⚡ ${discount}% OFF`);
+      } else {
+        highlights.push('Melhor Preço');
+      }
+      highlights.push(`💰 Comissão: ${commissionPercent}`);
 
       return {
         id: `shopee-${node.itemId}`,
@@ -353,16 +389,14 @@ async function getTopShopeeOffers(limit = 20, page = 1, keyword = '') {
         originalPrice: originalPrice,
         currency: 'BRL',
         discount: discount,
+        sales: salesCount,
+        rating: rating > 0 ? rating.toFixed(1) : null,
         commissionRate: commissionPercent,
         image: cleanImg,
         itemUrl: node.productLink || '',
         affiliateUrl: affLink,
         store: node.shopName ? `Shopee (${node.shopName})` : 'Shopee',
-        highlights: [
-          'Produto Original',
-          discount > 0 ? `🔥 ${discount}% de Desconto` : 'Melhor Preço',
-          `💰 Comissão: ${commissionPercent}`
-        ]
+        highlights: highlights
       };
     });
   } catch (err) {

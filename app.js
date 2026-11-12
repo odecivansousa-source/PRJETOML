@@ -2634,47 +2634,97 @@ const selectedCountEl = $('#selected-count');
 const radarChipsContainer = $('#radar-chips');
 const radarSearchInput = $('#radar-search-input');
 const btnRadarSearch = $('#btn-radar-search');
+const radarSortTabs = $('#radar-sort-tabs');
+const radarLimitSelect = $('#radar-limit-select');
+const radarQuickBar = $('#radar-quick-bar');
+const radarShowingInfo = $('#radar-showing-info');
+const btnRadarSelectAll = $('#btn-radar-select-all');
+const btnRadarUnselectAll = $('#btn-radar-unselect-all');
+const radarLoadMoreBox = $('#radar-load-more-box');
+const btnRadarLoadMore = $('#btn-radar-load-more');
+const loadMoreCountEl = $('#load-more-count');
 
 let currentMinedOffers = [];
 let selectedMinedOfferIds = new Set();
 let currentRadarKeyword = '';
+let currentRadarSortType = 3; // 3: Mais Vendidos por padrão
+let currentRadarLimit = 24;
 let currentRadarPage = 1;
 
-async function fetchMinedOffers(keyword = '', page = 1) {
+async function fetchMinedOffers(keyword = '', page = 1, append = false) {
   if (!btnMineOffers) return;
-  btnMineOffers.disabled = true;
-  btnMineOffers.innerHTML = '<span>⏳ Minerando ofertas...</span>';
-  if (radarGridStatus) {
-    radarGridStatus.hidden = false;
-    radarGridStatus.innerHTML = '🔍 Conectando à API Oficial da Shopee e minerando as melhores ofertas com altas comissões...';
+
+  if (append) {
+    if (btnRadarLoadMore) {
+      btnRadarLoadMore.disabled = true;
+      btnRadarLoadMore.innerHTML = '<span>⏳ Carregando mais produtos...</span>';
+    }
+  } else {
+    btnMineOffers.disabled = true;
+    btnMineOffers.innerHTML = '<span>⏳ Minerando ofertas...</span>';
+    if (radarGridStatus) {
+      radarGridStatus.hidden = false;
+      radarGridStatus.innerHTML = '🔍 Buscando os melhores produtos e comissões da Shopee...';
+    }
+    if (radarGrid) radarGrid.hidden = true;
+    if (radarQuickBar) radarQuickBar.hidden = true;
+    if (radarLoadMoreBox) radarLoadMoreBox.hidden = true;
   }
-  if (radarGrid) radarGrid.hidden = true;
 
   try {
-    const url = `/api/miner/offers?keyword=${encodeURIComponent(keyword)}&page=${page}&limit=12`;
+    const url = `/api/miner/offers?keyword=${encodeURIComponent(keyword)}&page=${page}&limit=${currentRadarLimit}&sortType=${currentRadarSortType}`;
     const res = await fetch(apiUrl(url));
     const data = await res.json();
 
     if (!data.ok) throw new Error(data.error || 'Falha ao minerar ofertas.');
-    currentMinedOffers = data.offers || [];
-    selectedMinedOfferIds.clear();
+    const fetchedOffers = data.offers || [];
+
+    if (append) {
+      // Adiciona apenas ofertas que ainda não estavam na tela
+      const existingIds = new Set(currentMinedOffers.map(o => o.id));
+      const newItems = fetchedOffers.filter(o => !existingIds.has(o.id));
+      newItems.forEach(o => {
+        currentMinedOffers.push(o);
+        selectedMinedOfferIds.add(o.id);
+      });
+      showToast(`🔥 +${newItems.length} novas ofertas carregadas!`);
+    } else {
+      currentMinedOffers = fetchedOffers;
+      selectedMinedOfferIds.clear();
+      // Seleciona automaticamente todas para agilizar o envio em massa
+      currentMinedOffers.forEach(o => selectedMinedOfferIds.add(o.id));
+    }
 
     if (currentMinedOffers.length === 0) {
-      if (radarGridStatus) radarGridStatus.innerHTML = 'Nenhuma oferta encontrada para este filtro. Tente outra categoria ou clique em <b>"Melhores Ofertas (Geral)"</b>.';
+      if (radarGridStatus) {
+        radarGridStatus.hidden = false;
+        radarGridStatus.innerHTML = 'Nenhuma oferta encontrada para este filtro. Tente outra categoria ou clique em <b>"🌟 Todos os Departamentos"</b>.';
+      }
       if (btnBatchEnqueue) btnBatchEnqueue.disabled = true;
       if (selectedCountEl) selectedCountEl.textContent = '0';
+      if (radarQuickBar) radarQuickBar.hidden = true;
+      if (radarLoadMoreBox) radarLoadMoreBox.hidden = true;
       return;
     }
 
-    // Por padrão, seleciona todas as ofertas mineradas para facilitar a vida do usuário!
-    currentMinedOffers.forEach(o => selectedMinedOfferIds.add(o.id));
     renderMinedOffersGrid(currentMinedOffers);
+
+    if (radarQuickBar) radarQuickBar.hidden = false;
+    if (radarLoadMoreBox) radarLoadMoreBox.hidden = false;
+    if (radarShowingInfo) radarShowingInfo.textContent = `Exibindo ${currentMinedOffers.length} ofertas na tela`;
+    if (loadMoreCountEl) loadMoreCountEl.textContent = String(currentRadarLimit);
   } catch (err) {
-    if (radarGridStatus) radarGridStatus.innerHTML = `⚠️ Erro ao minerar ofertas: ${escapeHtml(err.message)}`;
+    if (!append && radarGridStatus) {
+      radarGridStatus.innerHTML = `⚠️ Erro ao minerar ofertas: ${escapeHtml(err.message)}`;
+    }
     showToast('Erro ao minerar: ' + err.message, true);
   } finally {
     btnMineOffers.disabled = false;
-    btnMineOffers.innerHTML = '<span>⚡ Minerar Novas Ofertas</span>';
+    btnMineOffers.innerHTML = '<span>⚡ Minerar Ofertas</span>';
+    if (btnRadarLoadMore) {
+      btnRadarLoadMore.disabled = false;
+      btnRadarLoadMore.innerHTML = `<span>➕ Carregar Mais Ofertas (+${currentRadarLimit})</span>`;
+    }
   }
 }
 
@@ -2698,7 +2748,7 @@ function renderMinedOffersGrid(offers) {
           </label>
           <div class="radar-badges">
             <span class="badge-comm">💰 ${escapeHtml(o.commissionRate)}</span>
-            ${hasDiscount ? `<span class="badge-disc">🔥 -${o.discount}%</span>` : ''}
+            ${hasDiscount ? `<span class="badge-disc">⚡ -${o.discount}%</span>` : ''}
           </div>
         </div>
 
@@ -2821,6 +2871,47 @@ function updateSelectedCount() {
   }
 }
 
+// Botões de Selecionar Todas / Desmarcar Todas
+btnRadarSelectAll?.addEventListener('click', () => {
+  currentMinedOffers.forEach(o => selectedMinedOfferIds.add(o.id));
+  radarGrid?.querySelectorAll('.radar-check').forEach(chk => { chk.checked = true; });
+  radarGrid?.querySelectorAll('.radar-card').forEach(card => card.classList.add('selected'));
+  updateSelectedCount();
+  showToast(`✅ Todas as ${currentMinedOffers.length} ofertas marcadas!`);
+});
+
+btnRadarUnselectAll?.addEventListener('click', () => {
+  selectedMinedOfferIds.clear();
+  radarGrid?.querySelectorAll('.radar-check').forEach(chk => { chk.checked = false; });
+  radarGrid?.querySelectorAll('.radar-card').forEach(card => card.classList.remove('selected'));
+  updateSelectedCount();
+  showToast('Desmarcou todas as ofertas.');
+});
+
+// Botão Carregar Mais Ofertas
+btnRadarLoadMore?.addEventListener('click', () => {
+  currentRadarPage++;
+  fetchMinedOffers(currentRadarKeyword, currentRadarPage, true);
+});
+
+// Seletor de quantidade de ofertas por busca (24, 48, 96)
+radarLimitSelect?.addEventListener('change', (e) => {
+  currentRadarLimit = parseInt(e.target.value) || 24;
+  currentRadarPage = 1;
+  fetchMinedOffers(currentRadarKeyword, 1, false);
+});
+
+// Abas de Ordenação (Mais Vendidos, Ofertas do Dia, Comissões, Novidades)
+radarSortTabs?.querySelectorAll('.radar-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    radarSortTabs.querySelectorAll('.radar-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentRadarSortType = parseInt(tab.dataset.sort) || 3;
+    currentRadarPage = 1;
+    fetchMinedOffers(currentRadarKeyword, 1, false);
+  });
+});
+
 // Enviar selecionadas em lote para a Fila do Piloto Automático
 btnBatchEnqueue?.addEventListener('click', async () => {
   if (!checkAuthAccess()) return;
@@ -2856,12 +2947,13 @@ btnBatchEnqueue?.addEventListener('click', async () => {
   }
 });
 
-// Ações dos botões e chips de busca
+// Ações do botão principal de Minerar
 btnMineOffers?.addEventListener('click', () => {
-  currentRadarPage = (currentRadarPage % 8) + 1; // Pagina automaticamente para sempre trazer produtos novos!
-  fetchMinedOffers(currentRadarKeyword, currentRadarPage);
+  currentRadarPage = (currentRadarPage % 10) + 1; // Pagina automaticamente para sempre trazer novos achados
+  fetchMinedOffers(currentRadarKeyword, currentRadarPage, false);
 });
 
+// Chips de Departamentos
 radarChipsContainer?.querySelectorAll('.chip').forEach(chip => {
   chip.addEventListener('click', () => {
     radarChipsContainer.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
@@ -2869,10 +2961,11 @@ radarChipsContainer?.querySelectorAll('.chip').forEach(chip => {
     currentRadarKeyword = chip.dataset.keyword || '';
     currentRadarPage = 1;
     if (radarSearchInput) radarSearchInput.value = '';
-    fetchMinedOffers(currentRadarKeyword, 1);
+    fetchMinedOffers(currentRadarKeyword, 1, false);
   });
 });
 
+// Busca livre por input
 btnRadarSearch?.addEventListener('click', () => {
   const kw = radarSearchInput ? radarSearchInput.value.trim() : '';
   if (!kw) {
@@ -2882,7 +2975,7 @@ btnRadarSearch?.addEventListener('click', () => {
   radarChipsContainer?.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   currentRadarKeyword = kw;
   currentRadarPage = 1;
-  fetchMinedOffers(kw, 1);
+  fetchMinedOffers(kw, 1, false);
 });
 
 radarSearchInput?.addEventListener('keydown', (e) => {

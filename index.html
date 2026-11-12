@@ -573,41 +573,92 @@
           <div class="radar-header">
             <div>
               <span class="eyebrow">MINERADOR AUTOMÁTICO DE OFERTAS (SHOPEE API)</span>
-              <h2>⚡ Radar de Achadinhos & Altas Comissões</h2>
-              <p class="radar-subtitle">Busque automaticamente os produtos mais vendidos com descontos agressivos e comissões de até 50% sem procurar um por um!</p>
+              <h2>⚡ Radar de Achadinhos, Mais Vendidos & Ofertas do Dia</h2>
+              <p class="radar-subtitle">Puxe dezenas de ofertas de uma vez por departamento, com descontos agressivos e comissões garantidas para disparar ou agendar no piloto!</p>
             </div>
             <div class="radar-actions">
+              <div class="radar-limit-box">
+                <label for="radar-limit-select">Qtd:</label>
+                <select id="radar-limit-select" class="radar-select">
+                  <option value="24" selected>24 Ofertas</option>
+                  <option value="48">48 Ofertas</option>
+                  <option value="96">96 Ofertas (Lote Grande)</option>
+                </select>
+              </div>
               <button type="button" class="primary-button" id="btn-mine-offers">
-                <span>⚡ Minerar Novas Ofertas</span>
+                <span>⚡ Minerar Ofertas</span>
               </button>
               <button type="button" class="btn-batch-enqueue" id="btn-batch-enqueue" disabled>
-                <span>🚀 Adicionar Selecionadas à Fila (<span id="selected-count">0</span>)</span>
+                <span>🚀 Enviar Selecionadas (<span id="selected-count">0</span>)</span>
               </button>
             </div>
           </div>
 
-          <!-- FILTROS DO RADAR -->
+          <!-- ABAS DE ORDENAÇÃO: MAIS VENDIDOS, OFERTAS DO DIA, MAIORES COMISSÕES -->
+          <div class="radar-tabs-wrapper">
+            <span class="radar-filter-label">Modo da Oferta:</span>
+            <div class="radar-sort-tabs" id="radar-sort-tabs">
+              <button type="button" class="radar-tab active" data-sort="3" title="Produtos campeões de vendas na Shopee">
+                <span>🏆 Mais Vendidos</span>
+              </button>
+              <button type="button" class="radar-tab" data-sort="5" title="Ofertas com os maiores descontos do dia e queima de estoque">
+                <span>⚡ Ofertas do Dia (Super Descontos)</span>
+              </button>
+              <button type="button" class="radar-tab" data-sort="2" title="Produtos selecionados com as comissões mais altas (até 50%)">
+                <span>💰 Maiores Comissões</span>
+              </button>
+              <button type="button" class="radar-tab" data-sort="1" title="Produtos recém-adicionados ao catálogo de afiliados">
+                <span>🆕 Lançamentos & Novidades</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- FILTROS POR DEPARTAMENTO -->
           <div class="radar-filters">
             <div class="radar-chips" id="radar-chips">
-              <button type="button" class="chip active" data-keyword="">🔥 Melhores Ofertas (Geral)</button>
-              <button type="button" class="chip" data-keyword="relogio">⌚ Relógios & Moda (Comissão Alta)</button>
-              <button type="button" class="chip" data-keyword="cozinha">🏠 Casa & Cozinha</button>
-              <button type="button" class="chip" data-keyword="fone">📱 Eletrônicos & Acessórios</button>
-              <button type="button" class="chip" data-keyword="perfume">💄 Beleza & Perfumaria</button>
+              <button type="button" class="chip active" data-keyword="">🌟 Todos os Departamentos</button>
+              <button type="button" class="chip" data-keyword="celular fone smartwatch">📱 Celulares & Eletrônicos</button>
+              <button type="button" class="chip" data-keyword="air fryer panela cozinha">🏠 Casa, Cozinha & Eletro</button>
+              <button type="button" class="chip" data-keyword="perfume maquiagem cuidados">💄 Beleza & Perfumaria</button>
+              <button type="button" class="chip" data-keyword="tenis roupa relogio">👗 Moda, Tênis & Relógios</button>
+              <button type="button" class="chip" data-keyword="gamer teclado mouse">🎮 Games & Informática</button>
+              <button type="button" class="chip" data-keyword="furadeira ferramentas automotivo">🚗 Automotivo & Ferramentas</button>
+              <button type="button" class="chip" data-keyword="brinquedos infantil bebe">🧸 Bebês & Brinquedos</button>
             </div>
             <div class="radar-custom-search">
-              <input type="text" id="radar-search-input" placeholder="Ou digite um nicho específico (ex: brinquedos)...">
+              <input type="text" id="radar-search-input" placeholder="Ou busque qualquer produto (ex: xiaomi, cafeteira, whey)...">
               <button type="button" id="btn-radar-search">Buscar</button>
+            </div>
+          </div>
+
+          <!-- BARRA DE SELEÇÃO RÁPIDA -->
+          <div class="radar-quick-bar" id="radar-quick-bar" hidden>
+            <div class="radar-quick-info">
+              <span id="radar-showing-info">Exibindo 0 ofertas</span>
+            </div>
+            <div class="radar-quick-buttons">
+              <button type="button" class="btn-radar-select-all" id="btn-radar-select-all">
+                <span>☑️ Marcar Todas da Tela</span>
+              </button>
+              <button type="button" class="btn-radar-unselect-all" id="btn-radar-unselect-all">
+                <span>Desmarcar Todas</span>
+              </button>
             </div>
           </div>
 
           <!-- GRID DE PRODUTOS MINERADOS -->
           <div class="radar-grid-container">
             <div class="radar-grid-status" id="radar-grid-status">
-              Clique em <b>"⚡ Minerar Novas Ofertas"</b> para carregar os produtos mais quentes com link de afiliado oficial pronto!
+              Clique em <b>"⚡ Minerar Ofertas"</b> ou escolha um departamento acima para puxar os produtos campeões de vendas!
             </div>
             <div class="radar-grid" id="radar-grid" hidden>
               <!-- Cards inseridos dinamicamente pelo JS -->
+            </div>
+            <!-- BOTÃO CARREGAR MAIS OFERTAS NO FINAL DA GRADE -->
+            <div class="radar-load-more-box" id="radar-load-more-box" hidden>
+              <button type="button" class="btn-load-more" id="btn-radar-load-more">
+                <span>➕ Carregar Mais Ofertas (+<span id="load-more-count">24</span>)</span>
+              </button>
             </div>
           </div>
         </section>
