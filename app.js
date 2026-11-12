@@ -2714,8 +2714,11 @@ function renderMinedOffersGrid(offers) {
         </div>
 
         <div class="radar-card-footer">
-          <button type="button" class="btn-radar-quick-add" data-id="${escapeHtml(o.id)}" title="Adicionar apenas este item à fila do Piloto">
-            <span>➕ Adicionar à Fila</span>
+          <button type="button" class="btn-radar-load" data-id="${escapeHtml(o.id)}" title="Carregar no painel para disparar imediatamente no WhatsApp ou Telegram">
+            <span>⚡ Abrir & Disparar Agora</span>
+          </button>
+          <button type="button" class="btn-radar-quick-add" data-id="${escapeHtml(o.id)}" title="Adicionar à fila do Piloto Automático">
+            <span>➕ Fila Automática</span>
           </button>
         </div>
       </div>
@@ -2723,6 +2726,32 @@ function renderMinedOffersGrid(offers) {
   }).join('');
 
   updateSelectedCount();
+
+  // Event listener para carregar no Criador de Ofertas e disparar na hora
+  radarGrid.querySelectorAll('.btn-radar-load').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const offer = currentMinedOffers.find(o => o.id === id);
+      if (!offer) return;
+
+      setProduct({
+        title: offer.title,
+        price: offer.price,
+        originalPrice: offer.originalPrice,
+        image: offer.image || '',
+        itemUrl: offer.itemUrl,
+        affiliateUrl: offer.affiliateUrl,
+        store: offer.store,
+        highlights: offer.highlights || [],
+        coupon: '',
+        details: `Minerado via Shopee API. Comissão estimada: ${offer.commissionRate || '12%'}`
+      });
+
+      productSection?.scrollIntoView({ behavior: 'smooth' });
+      showToast(`⚡ "${offer.title.slice(0, 30)}..." carregado! Clique em "Enviar no WhatsApp" ou "Enviar no Telegram".`);
+    });
+  });
 
   // Event listeners dos checkboxes
   radarGrid.querySelectorAll('.radar-check').forEach(chk => {

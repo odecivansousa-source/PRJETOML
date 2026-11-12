@@ -3438,6 +3438,31 @@ body.dark-mode .whatsapp-qr-box {
 
 .radar-card-footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-radar-load {
+  width: 100%;
+  height: 34px;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-radar-load:hover {
+  background: var(--purple-dark);
+  transform: translateY(-1px);
 }
 
 .btn-radar-quick-add {
