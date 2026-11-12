@@ -4,9 +4,29 @@
 // ============================================================================
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+// Carrega variáveis de ambiente do .env local com segurança (sem vazar para o GitHub)
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
+    for (const line of lines) {
+      const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (m && !process.env[m[1]]) {
+        let val = (m[2] || '').trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        process.env[m[1]] = val;
+      }
+    }
+  }
+} catch (e) {}
 
 const SHOPEE_APP_ID = process.env.SHOPEE_APP_ID || '18326420168';
-const SHOPEE_SECRET = process.env.SHOPEE_SECRET || '7YVTC6JAINEUOY2WSKIR6AJGLZRNWXNI';
+const SHOPEE_SECRET = process.env.SHOPEE_SECRET || '';
 const SHOPEE_GRAPHQL_ENDPOINT = process.env.SHOPEE_GRAPHQL_ENDPOINT || 'https://open-api.affiliate.shopee.com.br/graphql';
 
 /**
@@ -15,6 +35,9 @@ const SHOPEE_GRAPHQL_ENDPOINT = process.env.SHOPEE_GRAPHQL_ENDPOINT || 'https://
  * Onde Signature = SHA256(appId + timestamp + payloadString + secret)
  */
 function createShopeeAuthHeader(payloadString, timestamp = Math.floor(Date.now() / 1000)) {
+  if (!SHOPEE_SECRET) {
+    throw new Error('Chave secreta da Shopee (SHOPEE_SECRET) não configurada nas Variáveis de Ambiente.');
+  }
   const factor = `${SHOPEE_APP_ID}${timestamp}${payloadString}${SHOPEE_SECRET}`;
   const signature = crypto.createHash('sha256').update(factor, 'utf8').digest('hex');
   return `SHA256 Credential=${SHOPEE_APP_ID},Timestamp=${timestamp},Signature=${signature}`;
@@ -269,6 +292,85 @@ async function resolveShopeeProduct(rawUrl) {
   };
 }
 
+/**
+ * Minera as melhores ofertas e produtos com maiores comissões da Shopee
+ * @param {number} limit Quantidade de ofertas (padrão 20)
+ * @param {number} page Página da busca
+ * @param {string} keyword Palavra-chave opcional para filtrar por nicho
+ */
+async function getTopShopeeOffers(limit = 20, page = 1, keyword = '') {
+  try {
+    const cleanKw = String(keyword || '').trim();
+    const keywordArg = cleanKw ? `, keyword: "${cleanKw.replace(/"/g, '')}"` : '';
+    const safePage = Math.max(1, parseInt(page) || 1);
+    const safeLimit = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+    const query = `{
+      productOfferV2(page: ${safePage}, limit: ${safeLimit}${keywordArg}) {
+        nodes {
+          itemId
+          shopId
+          productName
+          imageUrl
+          priceMin
+          priceMax
+          priceDiscountRate
+          productLink
+          offerLink
+          commissionRate
+          shopName
+        }
+      }
+    }`;
+
+    const data = await shopeeGraphQL(query);
+    const nodes = data?.productOfferV2?.nodes || [];
+
+    return nodes.map(node => {
+      const priceMin = parseFloat(node.priceMin || node.price || 0);
+      const priceMax = parseFloat(node.priceMax || 0);
+      const discount = Number(node.priceDiscountRate || 0);
+
+      let price = priceMin > 0 ? priceMin : null;
+      let originalPrice = null;
+
+      if (discount > 0 && price) {
+        originalPrice = Number((price / (1 - (discount / 100))).toFixed(2));
+      } else if (priceMax > priceMin && priceMax > 0) {
+        originalPrice = priceMax;
+      }
+
+      const commissionFloat = Number(node.commissionRate || 0);
+      const commissionPercent = commissionFloat > 0 ? `${(commissionFloat * 100).toFixed(0)}%` : '10%';
+      const cleanImg = cleanShopeeImageUrl(node.imageUrl);
+      const affLink = node.offerLink || node.productLink || '';
+
+      return {
+        id: `shopee-${node.itemId}`,
+        itemId: node.itemId,
+        title: node.productName || 'Oferta Shopee',
+        price: price,
+        originalPrice: originalPrice,
+        currency: 'BRL',
+        discount: discount,
+        commissionRate: commissionPercent,
+        image: cleanImg,
+        itemUrl: node.productLink || '',
+        affiliateUrl: affLink,
+        store: node.shopName ? `Shopee (${node.shopName})` : 'Shopee',
+        highlights: [
+          'Produto Original',
+          discount > 0 ? `🔥 ${discount}% de Desconto` : 'Melhor Preço',
+          `💰 Comissão: ${commissionPercent}`
+        ]
+      };
+    });
+  } catch (err) {
+    console.error('[Shopee API] Erro ao minerar ofertas:', err.message);
+    return [];
+  }
+}
+
 module.exports = {
   SHOPEE_APP_ID,
   SHOPEE_SECRET,
@@ -279,5 +381,6 @@ module.exports = {
   generateShortLink,
   getProductOffer,
   cleanShopeeImageUrl,
-  resolveShopeeProduct
+  resolveShopeeProduct,
+  getTopShopeeOffers
 };

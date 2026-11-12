@@ -25,6 +25,7 @@ let queueState = {
   endTime: '22:00',
   sendWhatsApp: true,
   sendTelegram: true,
+  autoRefill: true,
   nextDispatchAt: null,
   items: [],
   history: []
@@ -107,6 +108,7 @@ async function loadQueue() {
         endTime: data.endTime || '22:00',
         sendWhatsApp: data.sendWhatsApp ?? true,
         sendTelegram: data.sendTelegram ?? true,
+        autoRefill: data.autoRefill ?? true,
         items: Array.isArray(data.items) ? data.items : [],
         history: Array.isArray(data.history) ? data.history.slice(-30) : []
       };
@@ -160,6 +162,7 @@ function saveQueueLocal() {
       endTime: queueState.endTime,
       sendWhatsApp: queueState.sendWhatsApp,
       sendTelegram: queueState.sendTelegram,
+      autoRefill: queueState.autoRefill,
       items: queueState.items,
       history: queueState.history.slice(-30)
     };
@@ -181,6 +184,7 @@ function getStatus() {
     currentBrazilTime: hoursCheck.currentTime,
     sendWhatsApp: queueState.sendWhatsApp,
     sendTelegram: queueState.sendTelegram,
+    autoRefill: queueState.autoRefill,
     nextDispatchAt: queueState.nextDispatchAt,
     queueCount: queueState.items.length,
     items: queueState.items,
@@ -200,6 +204,7 @@ async function updateConfig(data) {
   }
   if (typeof data.sendWhatsApp === 'boolean') queueState.sendWhatsApp = data.sendWhatsApp;
   if (typeof data.sendTelegram === 'boolean') queueState.sendTelegram = data.sendTelegram;
+  if (typeof data.autoRefill === 'boolean') queueState.autoRefill = data.autoRefill;
 
   saveQueueLocal();
 
@@ -289,13 +294,46 @@ async function dispatchNext() {
   if (!queueState.isRunning) return;
 
   if (queueState.items.length === 0) {
-    console.log('[Piloto Automático] Fila vazia. Piloto pausado automaticamente.');
-    queueState.isRunning = false;
-    queueState.nextDispatchAt = null;
-    if (timer) clearTimeout(timer);
-    timer = null;
-    if (db) db.updateSettings({ isRunning: false }).catch(() => {});
-    return;
+    if (queueState.autoRefill) {
+      try {
+        console.log('[Piloto Automático] ⚡ Fila vazia com Auto-Abastecimento ativo! Minerando 10 novas ofertas...');
+        const shopee = require('./shopee');
+        const randomPage = Math.floor(Math.random() * 8) + 1;
+        const hotOffers = await shopee.getTopShopeeOffers(10, randomPage);
+        if (hotOffers && hotOffers.length > 0) {
+          for (const ho of hotOffers) {
+            queueState.items.push({
+              id: ho.id,
+              title: ho.title,
+              price: ho.price,
+              originalPrice: ho.originalPrice,
+              coupon: '',
+              highlights: ho.highlights || [],
+              affiliateUrl: ho.affiliateUrl,
+              image: ho.image,
+              store: ho.store,
+              details: 'Minerado automaticamente pela Shopee API.',
+              theme: 'purple',
+              createdAt: Date.now()
+            });
+          }
+          saveQueueLocal();
+          console.log(`[Piloto Automático] ✅ Abastecido com ${hotOffers.length} novas ofertas quentes!`);
+        }
+      } catch (err) {
+        console.warn('[Piloto Automático] Aviso ao auto-abastecer fila:', err.message);
+      }
+    }
+
+    if (queueState.items.length === 0) {
+      console.log('[Piloto Automático] Fila vazia. Piloto pausado automaticamente.');
+      queueState.isRunning = false;
+      queueState.nextDispatchAt = null;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      if (db) db.updateSettings({ isRunning: false }).catch(() => {});
+      return;
+    }
   }
 
   // 1. Verifica se está no horário permitido de disparos

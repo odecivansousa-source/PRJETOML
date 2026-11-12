@@ -42,6 +42,11 @@
             <span>Criar oferta</span>
             <span class="nav-dot"></span>
           </a>
+          <a class="nav-item" href="#radar-section">
+            <span class="nav-icon">⚡</span>
+            <span>Radar de Ofertas</span>
+            <span class="nav-new-pill">NOVO</span>
+          </a>
           <a class="nav-item" href="#historico-section">
             <span class="nav-icon">🕒</span>
             <span>Histórico do dia</span>
@@ -563,6 +568,50 @@
           </div>
         </section>
 
+        <!-- SEÇÃO: RADAR DE OFERTAS (MINERADOR AUTOMÁTICO SHOPEE) -->
+        <section class="radar-section" id="radar-section">
+          <div class="radar-header">
+            <div>
+              <span class="eyebrow">MINERADOR AUTOMÁTICO DE OFERTAS (SHOPEE API)</span>
+              <h2>⚡ Radar de Achadinhos & Altas Comissões</h2>
+              <p class="radar-subtitle">Busque automaticamente os produtos mais vendidos com descontos agressivos e comissões de até 50% sem procurar um por um!</p>
+            </div>
+            <div class="radar-actions">
+              <button type="button" class="primary-button" id="btn-mine-offers">
+                <span>⚡ Minerar Novas Ofertas</span>
+              </button>
+              <button type="button" class="btn-batch-enqueue" id="btn-batch-enqueue" disabled>
+                <span>🚀 Adicionar Selecionadas à Fila (<span id="selected-count">0</span>)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- FILTROS DO RADAR -->
+          <div class="radar-filters">
+            <div class="radar-chips" id="radar-chips">
+              <button type="button" class="chip active" data-keyword="">🔥 Melhores Ofertas (Geral)</button>
+              <button type="button" class="chip" data-keyword="relogio">⌚ Relógios & Moda (Comissão Alta)</button>
+              <button type="button" class="chip" data-keyword="cozinha">🏠 Casa & Cozinha</button>
+              <button type="button" class="chip" data-keyword="fone">📱 Eletrônicos & Acessórios</button>
+              <button type="button" class="chip" data-keyword="perfume">💄 Beleza & Perfumaria</button>
+            </div>
+            <div class="radar-custom-search">
+              <input type="text" id="radar-search-input" placeholder="Ou digite um nicho específico (ex: brinquedos)...">
+              <button type="button" id="btn-radar-search">Buscar</button>
+            </div>
+          </div>
+
+          <!-- GRID DE PRODUTOS MINERADOS -->
+          <div class="radar-grid-container">
+            <div class="radar-grid-status" id="radar-grid-status">
+              Clique em <b>"⚡ Minerar Novas Ofertas"</b> para carregar os produtos mais quentes com link de afiliado oficial pronto!
+            </div>
+            <div class="radar-grid" id="radar-grid" hidden>
+              <!-- Cards inseridos dinamicamente pelo JS -->
+            </div>
+          </div>
+        </section>
+
         <!-- SEÇÃO: PILOTO AUTOMÁTICO (FILA DE DISPARO AGENDADO) -->
         <section class="piloto-section" id="piloto-section">
           <div class="piloto-header">
@@ -618,6 +667,10 @@
                 <label class="checkbox-label">
                   <input type="checkbox" id="queue-check-telegram" checked>
                   <span>➤ Telegram</span>
+                </label>
+                <label class="checkbox-label" title="Se a fila ficar vazia, abastece automaticamente com 10 ofertas da Shopee">
+                  <input type="checkbox" id="queue-check-autorefill" checked>
+                  <span>⚡ Auto-Abastecer 24h</span>
                 </label>
               </div>
             </div>

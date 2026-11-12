@@ -1742,6 +1742,9 @@ function renderQueueUI(status) {
   if (queueCheckTelegram && document.activeElement !== queueCheckTelegram) {
     queueCheckTelegram.checked = status.sendTelegram !== false;
   }
+  if (queueCheckAutoRefill && document.activeElement !== queueCheckAutoRefill) {
+    queueCheckAutoRefill.checked = status.autoRefill !== false;
+  }
 
   // Renderiza cards da fila
   if (queueItemsGrid) {
@@ -1989,6 +1992,15 @@ queueCheckWhatsApp?.addEventListener('change', async () => {
 queueCheckTelegram?.addEventListener('change', async () => {
   try {
     await postJson('/api/queue/config', { sendTelegram: queueCheckTelegram.checked, userId: getActiveUserId() });
+    await refreshQueueStatus();
+  } catch (err) {}
+});
+
+const queueCheckAutoRefill = $('#queue-check-autorefill');
+queueCheckAutoRefill?.addEventListener('change', async () => {
+  try {
+    await postJson('/api/queue/config', { autoRefill: queueCheckAutoRefill.checked, userId: getActiveUserId() });
+    showToast(queueCheckAutoRefill.checked ? '⚡ Auto-Abastecimento 24h ativado!' : 'Auto-Abastecimento desativado.');
     await refreshQueueStatus();
   } catch (err) {}
 });
@@ -2607,6 +2619,240 @@ $$('.nav-list a').forEach(link => {
       }
     }
   });
+});
+
+// ============================================================================
+// RADAR DE OFERTAS & AUTO-MINERADOR DA SHOPEE
+// ============================================================================
+const btnMineOffers = $('#btn-mine-offers');
+const btnBatchEnqueue = $('#btn-batch-enqueue');
+const radarGrid = $('#radar-grid');
+const radarGridStatus = $('#radar-grid-status');
+const selectedCountEl = $('#selected-count');
+const radarChipsContainer = $('#radar-chips');
+const radarSearchInput = $('#radar-search-input');
+const btnRadarSearch = $('#btn-radar-search');
+
+let currentMinedOffers = [];
+let selectedMinedOfferIds = new Set();
+let currentRadarKeyword = '';
+let currentRadarPage = 1;
+
+async function fetchMinedOffers(keyword = '', page = 1) {
+  if (!btnMineOffers) return;
+  btnMineOffers.disabled = true;
+  btnMineOffers.innerHTML = '<span>⏳ Minerando ofertas...</span>';
+  if (radarGridStatus) {
+    radarGridStatus.hidden = false;
+    radarGridStatus.innerHTML = '🔍 Conectando à API Oficial da Shopee e minerando as melhores ofertas com altas comissões...';
+  }
+  if (radarGrid) radarGrid.hidden = true;
+
+  try {
+    const url = `/api/miner/offers?keyword=${encodeURIComponent(keyword)}&page=${page}&limit=12`;
+    const res = await fetch(apiUrl(url));
+    const data = await res.json();
+
+    if (!data.ok) throw new Error(data.error || 'Falha ao minerar ofertas.');
+    currentMinedOffers = data.offers || [];
+    selectedMinedOfferIds.clear();
+
+    if (currentMinedOffers.length === 0) {
+      if (radarGridStatus) radarGridStatus.innerHTML = 'Nenhuma oferta encontrada para este filtro. Tente outra categoria ou clique em <b>"Melhores Ofertas (Geral)"</b>.';
+      if (btnBatchEnqueue) btnBatchEnqueue.disabled = true;
+      if (selectedCountEl) selectedCountEl.textContent = '0';
+      return;
+    }
+
+    // Por padrão, seleciona todas as ofertas mineradas para facilitar a vida do usuário!
+    currentMinedOffers.forEach(o => selectedMinedOfferIds.add(o.id));
+    renderMinedOffersGrid(currentMinedOffers);
+  } catch (err) {
+    if (radarGridStatus) radarGridStatus.innerHTML = `⚠️ Erro ao minerar ofertas: ${escapeHtml(err.message)}`;
+    showToast('Erro ao minerar: ' + err.message, true);
+  } finally {
+    btnMineOffers.disabled = false;
+    btnMineOffers.innerHTML = '<span>⚡ Minerar Novas Ofertas</span>';
+  }
+}
+
+function renderMinedOffersGrid(offers) {
+  if (!radarGrid) return;
+  if (radarGridStatus) radarGridStatus.hidden = true;
+  radarGrid.hidden = false;
+
+  radarGrid.innerHTML = offers.map(o => {
+    const isSelected = selectedMinedOfferIds.has(o.id);
+    const hasDiscount = o.discount && o.discount > 0;
+    const originalPriceHtml = o.originalPrice ? `<span class="radar-orig-price">${formatPrice(o.originalPrice)}</span>` : '';
+    const priceHtml = o.price ? `<span class="radar-curr-price">${formatPrice(o.price)}</span>` : '<span class="radar-curr-price">Confira na loja</span>';
+
+    return `
+      <div class="radar-card ${isSelected ? 'selected' : ''}" data-id="${escapeHtml(o.id)}">
+        <div class="radar-card-top">
+          <label class="radar-checkbox-wrap" title="Selecionar para a fila">
+            <input type="checkbox" class="radar-check" data-id="${escapeHtml(o.id)}" ${isSelected ? 'checked' : ''}>
+            <span class="custom-chk"></span>
+          </label>
+          <div class="radar-badges">
+            <span class="badge-comm">💰 ${escapeHtml(o.commissionRate)}</span>
+            ${hasDiscount ? `<span class="badge-disc">🔥 -${o.discount}%</span>` : ''}
+          </div>
+        </div>
+
+        <div class="radar-img-box">
+          <img src="${escapeHtml(o.image)}" alt="${escapeHtml(o.title)}" loading="lazy" onerror="this.src='favicon.svg'">
+        </div>
+
+        <div class="radar-card-body">
+          <span class="radar-store-tag">${escapeHtml(o.store)}</span>
+          <h4 class="radar-card-title" title="${escapeHtml(o.title)}">${escapeHtml(o.title)}</h4>
+          <div class="radar-price-row">
+            ${originalPriceHtml}
+            ${priceHtml}
+          </div>
+        </div>
+
+        <div class="radar-card-footer">
+          <button type="button" class="btn-radar-quick-add" data-id="${escapeHtml(o.id)}" title="Adicionar apenas este item à fila do Piloto">
+            <span>➕ Adicionar à Fila</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateSelectedCount();
+
+  // Event listeners dos checkboxes
+  radarGrid.querySelectorAll('.radar-check').forEach(chk => {
+    chk.addEventListener('change', (e) => {
+      const id = e.target.dataset.id;
+      const card = radarGrid.querySelector(`.radar-card[data-id="${id}"]`);
+      if (e.target.checked) {
+        selectedMinedOfferIds.add(id);
+        if (card) card.classList.add('selected');
+      } else {
+        selectedMinedOfferIds.delete(id);
+        if (card) card.classList.remove('selected');
+      }
+      updateSelectedCount();
+    });
+  });
+
+  // Event listeners para adicionar individualmente
+  radarGrid.querySelectorAll('.btn-radar-quick-add').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const offer = currentMinedOffers.find(o => o.id === id);
+      if (!offer) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Adicionando...';
+      try {
+        await postJson('/api/queue/add', {
+          userId: getActiveUserId(),
+          title: offer.title,
+          price: offer.price,
+          originalPrice: offer.originalPrice,
+          coupon: '',
+          highlights: offer.highlights || [],
+          affiliateUrl: offer.affiliateUrl,
+          image: offer.image || '',
+          store: offer.store,
+          theme: 'purple'
+        });
+        showToast(`🔥 "${offer.title.slice(0, 25)}..." adicionado ao Piloto Automático!`);
+        btn.textContent = '✅ Na Fila!';
+        await refreshQueueStatus();
+      } catch (err) {
+        showToast('Erro: ' + err.message, true);
+        btn.textContent = '➕ Adicionar à Fila';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function updateSelectedCount() {
+  const count = selectedMinedOfferIds.size;
+  if (selectedCountEl) selectedCountEl.textContent = String(count);
+  if (btnBatchEnqueue) {
+    btnBatchEnqueue.disabled = count === 0;
+  }
+}
+
+// Enviar selecionadas em lote para a Fila do Piloto Automático
+btnBatchEnqueue?.addEventListener('click', async () => {
+  if (!checkAuthAccess()) return;
+  const selectedOffers = currentMinedOffers.filter(o => selectedMinedOfferIds.has(o.id));
+  if (selectedOffers.length === 0) {
+    showToast('Selecione pelo menos uma oferta para adicionar à fila.', true);
+    return;
+  }
+
+  btnBatchEnqueue.disabled = true;
+  const originalHtml = btnBatchEnqueue.innerHTML;
+  btnBatchEnqueue.innerHTML = '<span>⏳ Enviando para o Piloto...</span>';
+
+  try {
+    const res = await postJson('/api/miner/enqueue-batch', {
+      offers: selectedOffers,
+      userId: getActiveUserId(),
+      theme: 'purple'
+    });
+
+    if (!res.ok) throw new Error(res.error || 'Falha ao adicionar ofertas.');
+
+    showToast(`🚀 Sucesso! ${res.addedCount} ofertas quentes adicionadas ao Piloto Automático!`);
+    await refreshQueueStatus();
+
+    // Rola até o piloto automático para ver a fila
+    $('#piloto-section')?.scrollIntoView({ behavior: 'smooth' });
+  } catch (err) {
+    showToast('Erro ao adicionar em lote: ' + err.message, true);
+  } finally {
+    btnBatchEnqueue.disabled = false;
+    btnBatchEnqueue.innerHTML = originalHtml;
+  }
+});
+
+// Ações dos botões e chips de busca
+btnMineOffers?.addEventListener('click', () => {
+  currentRadarPage = (currentRadarPage % 8) + 1; // Pagina automaticamente para sempre trazer produtos novos!
+  fetchMinedOffers(currentRadarKeyword, currentRadarPage);
+});
+
+radarChipsContainer?.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    radarChipsContainer.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentRadarKeyword = chip.dataset.keyword || '';
+    currentRadarPage = 1;
+    if (radarSearchInput) radarSearchInput.value = '';
+    fetchMinedOffers(currentRadarKeyword, 1);
+  });
+});
+
+btnRadarSearch?.addEventListener('click', () => {
+  const kw = radarSearchInput ? radarSearchInput.value.trim() : '';
+  if (!kw) {
+    showToast('Digite uma palavra-chave para buscar.', true);
+    return;
+  }
+  radarChipsContainer?.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  currentRadarKeyword = kw;
+  currentRadarPage = 1;
+  fetchMinedOffers(kw, 1);
+});
+
+radarSearchInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    btnRadarSearch?.click();
+  }
 });
 
 // Inicialização

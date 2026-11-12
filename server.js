@@ -3,6 +3,24 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
 
+// Carrega variáveis de ambiente do .env local com segurança (sem vazar para o GitHub)
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
+    for (const line of lines) {
+      const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (m && !process.env[m[1]]) {
+        let val = (m[2] || '').trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        process.env[m[1]] = val;
+      }
+    }
+  }
+} catch (e) {}
+
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 4174);
 const REDIRECT_HOSTS = new Set([
@@ -1252,6 +1270,83 @@ const server = http.createServer(async (request, response) => {
       });
     } catch (err) {
       return sendJson(response, 500, { ok: false, error: err.message });
+    }
+  }
+
+  // ROTAS DO MINERADOR AUTOMÁTICO DE OFERTAS (RADAR DE OFERTAS)
+  if (requestUrl.pathname === '/api/miner/offers' && request.method === 'GET') {
+    try {
+      const keyword = requestUrl.searchParams.get('keyword') || '';
+      const page = parseInt(requestUrl.searchParams.get('page') || '1');
+      const limit = parseInt(requestUrl.searchParams.get('limit') || '20');
+
+      if (!shopee) {
+        return sendJson(response, 503, { ok: false, error: 'Módulo Shopee API indisponível.' });
+      }
+
+      const offers = await shopee.getTopShopeeOffers(limit, page, keyword);
+      return sendJson(response, 200, { ok: true, offers, total: offers.length });
+    } catch (err) {
+      return sendJson(response, 500, { ok: false, error: err.message });
+    }
+  }
+
+  if (requestUrl.pathname === '/api/miner/enqueue-batch' && request.method === 'POST') {
+    if (!checkLocalOrigin(request)) return sendJson(response, 403, { ok: false, error: 'Acesso recusado.' });
+    try {
+      const body = await readJsonBody(request);
+      const targetUserId = getRequestUserId(requestUrl, body);
+      if (targetUserId === 'visitor') throw new Error('Acesso exclusivo para assinantes.');
+
+      const offers = Array.isArray(body.offers) ? body.offers : [];
+      if (offers.length === 0) throw new Error('Nenhuma oferta selecionada para envio.');
+
+      let addedCount = 0;
+
+      if (targetUserId === 'default') {
+        if (!scheduler) return sendJson(response, 503, { ok: false, error: 'Piloto não disponível.' });
+        for (const o of offers) {
+          await scheduler.addItem({
+            title: o.title,
+            price: o.price,
+            originalPrice: o.originalPrice,
+            coupon: o.coupon || '',
+            highlights: o.highlights || [],
+            affiliateUrl: o.affiliateUrl,
+            image: o.image || '',
+            store: o.store || 'Shopee',
+            theme: body.theme || 'purple'
+          });
+          addedCount++;
+        }
+        return sendJson(response, 200, { ok: true, addedCount, queueCount: scheduler.getStatus().queueCount });
+      }
+
+      // Cliente isolado no Supabase
+      if (db) {
+        for (const o of offers) {
+          const itemPayload = {
+            id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            title: o.title,
+            price: o.price,
+            originalPrice: o.originalPrice,
+            coupon: o.coupon || '',
+            highlights: o.highlights || [],
+            affiliateUrl: o.affiliateUrl,
+            image: o.image || '',
+            store: o.store || 'Shopee',
+            theme: body.theme || 'purple',
+            status: 'pending',
+            created_at: new Date().toISOString()
+          };
+          await db.addQueueItem(itemPayload, targetUserId);
+          addedCount++;
+        }
+      }
+
+      return sendJson(response, 200, { ok: true, addedCount });
+    } catch (err) {
+      return sendJson(response, 400, { ok: false, error: err.message });
     }
   }
 
