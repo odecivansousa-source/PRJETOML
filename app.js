@@ -322,6 +322,8 @@ function renderProduct(data, skipHistorySave = false) {
   }
 }
 
+const setProduct = renderProduct;
+
 // Histórico de Ofertas & Contador Diário
 function getTodayString() {
   const d = new Date();
@@ -2735,21 +2737,27 @@ function renderMinedOffersGrid(offers) {
       const offer = currentMinedOffers.find(o => o.id === id);
       if (!offer) return;
 
-      setProduct({
-        title: offer.title,
-        price: offer.price,
-        originalPrice: offer.originalPrice,
-        image: offer.image || '',
-        itemUrl: offer.itemUrl,
-        affiliateUrl: offer.affiliateUrl,
-        store: offer.store,
-        highlights: offer.highlights || [],
-        coupon: '',
-        details: `Minerado via Shopee API. Comissão estimada: ${offer.commissionRate || '12%'}`
-      });
+      try {
+        renderProduct({
+          title: offer.title,
+          price: offer.price,
+          originalPrice: offer.originalPrice,
+          image: offer.image || '',
+          itemUrl: offer.itemUrl,
+          affiliateUrl: offer.affiliateUrl,
+          store: offer.store || 'Shopee',
+          highlights: offer.highlights || [],
+          coupon: '',
+          details: `Minerado via Shopee API. Comissão estimada: ${offer.commissionRate || '12%'}`
+        });
 
-      productSection?.scrollIntoView({ behavior: 'smooth' });
-      showToast(`⚡ "${offer.title.slice(0, 30)}..." carregado! Clique em "Enviar no WhatsApp" ou "Enviar no Telegram".`);
+        productSection.hidden = false;
+        productSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast(`⚡ "${offer.title.slice(0, 30)}..." carregado! Agora é só clicar em Enviar.`);
+      } catch (err) {
+        console.error('Erro ao carregar oferta do radar:', err);
+        showToast('Erro ao carregar oferta: ' + err.message, true);
+      }
     });
   });
 
