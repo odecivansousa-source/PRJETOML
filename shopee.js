@@ -379,7 +379,12 @@ async function getTopShopeeOffers(limit = 24, page = 1, keyword = '', sortType =
       } else {
         highlights.push('Melhor Preço');
       }
-      highlights.push(`💰 Comissão: ${commissionPercent}`);
+      if (rating > 0) {
+        highlights.push(`⭐ Avaliação ${rating.toFixed(1)}/5`);
+      } else {
+        highlights.push('⭐ Produto Bem Avaliado');
+      }
+      highlights.push('🛡️ Garantia Shopee Oficial');
 
       return {
         id: `shopee-${node.itemId}`,

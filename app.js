@@ -162,6 +162,12 @@ function productHashtags(title) {
   return [...productTags, '#OfertaDoDia', '#Achadinhos', '#Promocao'].join(' ');
 }
 
+function sanitizeBuyerHighlights(highlights) {
+  return (Array.isArray(highlights) ? highlights : [])
+    .map(h => String(h || '').trim())
+    .filter(h => h && !/comiss[aã]o|comiss/i.test(h));
+}
+
 function buildMessage() {
   if (!product) return '';
   const price = parseCurrencyInput(priceInput);
@@ -170,6 +176,7 @@ function buildMessage() {
   const title = currentTitle();
   const affiliateUrl = product.affiliateUrl || '';
   const discount = calculateDiscount();
+  const buyerHighlights = sanitizeBuyerHighlights(product.highlights);
 
   if (currentCopyStyle === 'curto') {
     const lines = [`🚀 *${title}*`];
@@ -190,7 +197,7 @@ function buildMessage() {
       '',
       `🔥 *${title}*`
     ];
-    for (const highlight of (product.highlights || []).slice(0, 4)) lines.push(highlight);
+    for (const highlight of buyerHighlights.slice(0, 4)) lines.push(highlight);
 
     if (discount.valid) {
       lines.push('', `❌ ~De ${formatPrice(originalPrice)}~`);
@@ -210,7 +217,7 @@ function buildMessage() {
 
   // Padrão (Imperdível)
   const lines = ['🔥 *OFERTA IMPERDÍVEL! 📱*', '', `🚀 *${title}*`];
-  for (const highlight of (product.highlights || []).slice(0, 5)) lines.push(highlight);
+  for (const highlight of buyerHighlights.slice(0, 5)) lines.push(highlight);
 
   if (discount.valid) {
     lines.push('', `❌ ~De ${formatPrice(originalPrice)}~`);

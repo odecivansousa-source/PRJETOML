@@ -195,12 +195,18 @@ function productHighlights(attributes, title) {
   return [...new Set([...extractHighlights(attributes), ...inferTitleHighlights(title)])].slice(0, 5);
 }
 
+function sanitizeBuyerHighlights(highlights) {
+  return (Array.isArray(highlights) ? highlights : [])
+    .map(h => String(h || '').trim())
+    .filter(h => h && !/comiss[aã]o|comiss/i.test(h));
+}
+
 function buildTelegramCaption(data) {
   const title = escapeTelegramHtml(String(data.title || '').trim().slice(0, 180) || 'Oferta especial');
   const price = Number(data.price);
   const originalPrice = Number(data.originalPrice);
   const lines = ['🔥 <b>OFERTA IMPERDÍVEL! 📱</b>', '', `🚀 <b>${title}</b>`];
-  const highlights = Array.isArray(data.highlights) ? data.highlights.slice(0, 6) : [];
+  const highlights = sanitizeBuyerHighlights(data.highlights).slice(0, 6);
   if (highlights.length) lines.push(...highlights.map(escapeTelegramHtml));
   
   if (Number.isFinite(originalPrice) && originalPrice > price && Number.isFinite(price) && price > 0) {
@@ -225,7 +231,7 @@ function buildWhatsAppOfferCaption(offer) {
   const affiliateUrl = String(offer.affiliateUrl || '').trim();
 
   const lines = ['🔥 *OFERTA IMPERDÍVEL! 📱*', '', `🚀 *${title}*`];
-  const highlights = Array.isArray(offer.highlights) ? offer.highlights.slice(0, 5) : [];
+  const highlights = sanitizeBuyerHighlights(offer.highlights).slice(0, 5);
   for (const h of highlights) lines.push(h);
 
   if (Number.isFinite(originalPrice) && originalPrice > price && Number.isFinite(price) && price > 0) {
@@ -796,6 +802,18 @@ const server = http.createServer(async (request, response) => {
   }
 
   const requestUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+
+  // ROTA DO ROBÔ ANTI-HIBERNAÇÃO & HEALTH CHECK (RESPOSTA INSTANTÂNEA)
+  if (requestUrl.pathname === '/api/ping' || requestUrl.pathname === '/health') {
+    return sendJson(response, 200, {
+      ok: true,
+      service: 'DISPARALINK74',
+      status: 'online',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      source: requestUrl.searchParams.get('bot') || 'external'
+    });
+  }
 
   if (requestUrl.pathname === '/api/telegram/status' && request.method === 'GET') {
     const targetUserId = getRequestUserId(requestUrl);
@@ -1587,4 +1605,53 @@ const server = http.createServer(async (request, response) => {
 });
 
 const HOST = process.env.HOST || '0.0.0.0';
-server.listen(PORT, HOST, () => console.log(`LinkPronto ativo em http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}`));
+server.listen(PORT, HOST, () => {
+  console.log(`LinkPronto ativo em http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}`);
+  startAntiSleepRobots();
+});
+
+// ============================================================================
+// DOIS ROBÔS ANTI-HIBERNAÇÃO DE 14 MINUTOS (RENDER 24/7 ONLINE)
+// Fazem requisições públicas periódicas na URL oficial para nunca hibernar
+// ============================================================================
+const PUBLIC_RENDER_URL = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://prjetoml.onrender.com';
+const INTERVAL_14_MINUTES = 14 * 60 * 1000; // 14 minutos (840 segundos)
+
+async function executeKeepAlivePing(robotName) {
+  const targetUrl = `${PUBLIC_RENDER_URL.replace(/\/$/, '')}/api/ping?bot=${encodeURIComponent(robotName)}`;
+  try {
+    const res = await fetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': `LinkPronto-AntiHibernacao-${robotName}/1.0`
+      },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (res.ok) {
+      console.log(`[Anti-Hibernação] 🤖 ${robotName}: Servidor acordado com sucesso! (Status: ${res.status})`);
+    } else {
+      console.warn(`[Anti-Hibernação] ⚠️ ${robotName}: Resposta com status ${res.status}`);
+    }
+  } catch (err) {
+    // Não quebra a aplicação caso esteja rodando offline/localhost
+    console.log(`[Anti-Hibernação] 🤖 ${robotName} pingou ${targetUrl} (aviso: ${err.message})`);
+  }
+}
+
+function startAntiSleepRobots() {
+  console.log(`[Anti-Hibernação] 🛡️ Ativando 2 Robôs de 14 minutos no servidor (${PUBLIC_RENDER_URL})`);
+
+  // Robô 1: Dispara a cada 14 minutos exatos (Ciclo A)
+  setInterval(() => {
+    executeKeepAlivePing('Robo-1-Ciclo-14min');
+  }, INTERVAL_14_MINUTES);
+
+  // Robô 2: Começa aos 7 minutos e depois roda a cada 14 minutos (Ciclo B - Alternado)
+  // Dessa forma, o servidor recebe um sinal público a cada 7 minutos, tornando a hibernação impossível!
+  setTimeout(() => {
+    executeKeepAlivePing('Robo-2-Sentinela-14min');
+    setInterval(() => {
+      executeKeepAlivePing('Robo-2-Sentinela-14min');
+    }, INTERVAL_14_MINUTES);
+  }, 7 * 60 * 1000); // 7 minutos de deslocamento inicial
+}
